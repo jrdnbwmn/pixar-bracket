@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pixar Movie Bracket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#fdfaf1; --surface:#ffffff; --surface-2:#f6f1e4; --ink:#211d1a; --muted:#7a7263;
+    --accent:#ff5a3c; --accent-ink:#fff8f2; --gold:#e7a91b; --teal:#127770; --teal-ink:#eafaf7;
+    --line:rgba(33,29,26,0.12); --shadow:rgba(60,40,20,0.14);
+    --danger:#c23b3b;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#15130f; --surface:#1f1c17; --surface-2:#26221b; --ink:#f3ede1; --muted:#a89d88;
+      --accent:#ff7a56; --accent-ink:#1a0d08; --gold:#f0bd3e; --teal:#4fc3b7; --teal-ink:#06201d;
+      --line:rgba(243,237,225,0.14); --shadow:rgba(0,0,0,0.4);
+      --danger:#ff6b6b;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#15130f; --surface:#1f1c17; --surface-2:#26221b; --ink:#f3ede1; --muted:#a89d88;
+    --accent:#ff7a56; --accent-ink:#1a0d08; --gold:#f0bd3e; --teal:#4fc3b7; --teal-ink:#06201d;
+    --line:rgba(243,237,225,0.14); --shadow:rgba(0,0,0,0.4);
+    --danger:#ff6b6b;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{ height:100%; }
+  body{
+    background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,sans-serif;
+    margin:0; padding:0 16px; min-height:100%;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  h1,h2,h3,.display{ font-family:'Fraunces',Georgia,serif; text-wrap:balance; }
+  .mono{ font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; }
+  a{ color:var(--teal); }
+  button{ font-family:inherit; }
+  [hidden]{ display:none !important; }
+
+  #app{ max-width:520px; margin:0 auto; padding-bottom:96px; min-height:100%; }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+    background:var(--bg); padding:14px 0 10px; margin:0 -16px; padding-inline:16px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{ display:flex; align-items:center; gap:8px; cursor:default; user-select:none; }
+  .brand .mark{ font-size:22px; line-height:1; }
+  .brand .word{ font-size:17px; font-weight:700; letter-spacing:0.2px; }
+  .who-pill{
+    display:flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--line);
+    border-radius:999px; padding:6px 12px 6px 6px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .who-pill .dot{ width:22px; height:22px; border-radius:999px; background:var(--accent); color:var(--accent-ink);
+    display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; }
+
+  /* ---------- Bottom nav ---------- */
+  .tabbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:20;
+    background:var(--surface); border-top:1px solid var(--line);
+    padding:8px 16px calc(8px + env(safe-area-inset-bottom,0px));
+    display:flex; justify-content:center;
+  }
+  .tabbar-inner{ width:100%; max-width:520px; display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .tab-btn{
+    background:none; border:none; color:var(--muted); display:flex; flex-direction:column; align-items:center;
+    gap:2px; padding:6px 4px; border-radius:12px; font-size:11px; font-weight:600; cursor:pointer;
+  }
+  .tab-btn .ic{ font-size:20px; }
+  .tab-btn.active{ color:var(--accent); }
+
+  /* ---------- Generic ---------- */
+  .screen{ padding-top:18px; }
+  .lead{ color:var(--muted); font-size:14px; line-height:1.5; margin:4px 0 18px; }
+  .section-title{ font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); font-weight:700; margin:22px 0 10px; }
+  .section-title:first-child{ margin-top:0; }
+
+  .name-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .name-btn{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px 10px;
+    font-family:'Fraunces',serif; font-size:18px; font-weight:600; color:var(--ink); cursor:pointer;
+    box-shadow:0 1px 0 var(--shadow);
+  }
+  .name-btn:active{ transform:scale(0.98); }
+
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    background:var(--accent); color:var(--accent-ink); border:none; border-radius:12px;
+    padding:12px 18px; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  .btn.secondary{ background:var(--surface-2); color:var(--ink); border:1px solid var(--line); }
+  .btn.danger{ background:var(--danger); color:#fff; }
+  .btn:disabled{ opacity:0.5; }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .link-btn{ background:none; border:none; color:var(--muted); font-size:13px; text-decoration:underline; cursor:pointer; padding:4px; }
+
+  /* ---------- Movie poster (flat color, no gradient) ---------- */
+  .poster{
+    border-radius:12px; padding:14px 12px; color:#fff; position:relative; overflow:hidden;
+    display:flex; flex-direction:column; justify-content:flex-end; min-height:92px;
+  }
+  .poster .p-title{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; text-wrap:balance; }
+  .poster .p-year{ font-size:10px; opacity:0.85; font-weight:600; margin-top:2px; }
+  .poster .p-badge{ position:absolute; top:8px; right:8px; font-size:16px; }
+
+  /* ---------- Round tabs ---------- */
+  .round-tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:14px; }
+  .round-tab{
+    flex:none; background:var(--surface-2); border:1px solid var(--line); border-radius:999px;
+    padding:8px 13px; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; white-space:nowrap;
+  }
+  .round-tab.active{ background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .round-tab .cnt{ opacity:0.75; font-weight:500; }
+
+  /* ---------- Game card ---------- */
+  .game-card{ background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:12px; margin-bottom:12px; }
+  .game-meta{ display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--muted); font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.04em; }
+  .status-pill{ border-radius:999px; padding:3px 9px; font-size:10px; font-weight:800; letter-spacing:0.03em; text-transform:uppercase; }
+  .status-locked{ background:var(--surface-2); color:var(--muted); }
+  .status-open{ background:rgba(255,90,60,0.14); color:var(--accent); }
+  .status-voted{ background:rgba(18,119,112,0.14); color:var(--teal); }
+  .status-done{ background:rgba(231,169,27,0.18); color:var(--gold); }
+
+  .matchup{ display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:stretch; }
+  .matchup .vs{ align-self:center; font-family:'Fraunces',serif; font-weight:600; color:var(--muted); font-size:12px; }
+  .pick-btn{ display:block; width:100%; text-align:left; border:2px solid transparent; border-radius:12px; cursor:pointer; padding:0; background:none; }
+  .pick-btn .poster{ min-height:78px; }
+  .pick-btn.disabled{ cursor:default; }
+  .pick-btn.chosen .poster{ outline:3px solid var(--teal); outline-offset:-3px; }
+  .pick-btn.winner .poster{ outline:3px solid var(--gold); outline-offset:-3px; }
+  .pick-btn.loser .poster{ opacity:0.55; }
+
+  .tally-row{ display:flex; justify-content:space-between; font-size:12px; margin-top:6px; color:var(--muted); }
+  .tally-row b{ color:var(--ink); }
+  .voters-line{ font-size:11px; color:var(--muted); margin-top:6px; line-height:1.5; }
+  .chip-row{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .chip{ background:var(--surface-2); border-radius:999px; padding:3px 9px; font-size:11px; font-weight:600; color:var(--muted); }
+  .chip.done{ background:rgba(18,119,112,0.14); color:var(--teal); }
+
+  .placeholder-note{ text-align:center; color:var(--muted); font-size:13px; padding:30px 10px; }
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(20,16,10,0.5); z-index:50; display:flex; align-items:flex-end; justify-content:center; }
+  .modal{ background:var(--surface); border-radius:20px 20px 0 0; padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px)); width:100%; max-width:520px; max-height:85vh; overflow-y:auto; }
+  @media (min-width:560px){ .modal-backdrop{ align-items:center; } .modal{ border-radius:20px; } }
+  .modal h3{ margin:0 0 4px; }
+  .field{ width:100%; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); font-size:16px; margin:10px 0; }
+
+  /* ---------- Coin toss ---------- */
+  .coin{ width:56px; height:56px; border-radius:999px; background:var(--gold); display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 8px; animation:flip 0.9s ease-out; }
+  @keyframes flip{ 0%{ transform:rotateY(0deg) scale(0.6); opacity:0; } 60%{ transform:rotateY(900deg) scale(1.1); opacity:1; } 100%{ transform:rotateY(1080deg) scale(1); } }
+  @media (prefers-reduced-motion:reduce){ .coin{ animation:none; } }
+
+  /* ---------- Stats ---------- */
+  .stat-tile{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .stat-tile .label{ font-size:13px; font-weight:600; }
+  .stat-tile .value{ font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; color:var(--teal); }
+  table.simple{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.simple th{ text-align:left; color:var(--muted); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; padding:6px 4px; border-bottom:1px solid var(--line); }
+  table.simple td{ padding:8px 4px; border-bottom:1px solid var(--line); }
+  .table-wrap{ overflow-x:auto; }
+
+  .badge-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .badge-card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px; text-align:center; }
+  .badge-card .em{ font-size:26px; }
+  .badge-card .nm{ font-weight:700; font-size:12px; margin-top:4px; }
+  .badge-card .bp{ font-size:10px; color:var(--muted); margin-top:2px; }
+
+  .champion-banner{ background:var(--gold); color:#241a04; border-radius:20px; padding:24px 16px; text-align:center; margin-bottom:18px; }
+  .champion-banner .tag{ font-size:11px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; opacity:0.75; }
+  .champion-banner h2{ margin:6px 0 2px; font-size:24px; }
+
+  .confetti-piece{ position:fixed; top:-10px; z-index:60; pointer-events:none; border-radius:2px; }
+
+  .toast{ position:fixed; left:50%; bottom:100px; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:999px; font-size:13px; font-weight:600; z-index:70; box-shadow:0 6px 16px var(--shadow); }
+
+  .admin-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .admin-row:last-child{ border-bottom:none; }
+
+  .footer-note{ text-align:center; color:var(--muted); font-size:11px; padding:18px 0 8px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="topbar">
+    <div class="brand" id="titleTap"><span class="mark">🎬</span><span class="word">Pixar Movie Bracket</span></div>
+    <button class="who-pill" id="whoPill" hidden>
+      <span class="dot" id="whoDot">?</span>
+      <span id="whoName">—</span>
+    </button>
+  </div>
+
+  <!-- NAME PICKER -->
+  <div class="screen" id="screenName" hidden>
+    <h1 style="font-size:26px;margin:6px 0 4px;">Who's voting?</h1>
+    <p class="lead">Pick your name to start voting on the Pixar bracket. You can switch names any time from the button up top.</p>
+    <div class="name-grid" id="nameGrid"></div>
+  </div>
+
+  <!-- CHAMPION PICK -->
+  <div class="screen" id="screenChampionPick" hidden>
+    <h1 style="font-size:24px;margin:6px 0 4px;">Call your champion</h1>
+    <p class="lead">Before round one, pick which movie you think will win the whole bracket. Locked in once you choose — no changing later.</p>
+    <div class="name-grid" id="championGrid" style="grid-template-columns:1fr 1fr;"></div>
+    <div style="text-align:center;margin-top:16px;"><button class="link-btn" id="skipChampion">Skip for now</button></div>
+  </div>
+
+  <!-- BRACKET TAB -->
+  <div class="screen" id="screenBracket" hidden>
+    <div class="round-tabs" id="roundTabs"></div>
+    <div id="gamesList"></div>
+  </div>
+
+  <!-- MY PICKS TAB -->
+  <div class="screen" id="screenMyPicks" hidden>
+    <div class="section-title">Open for you right now</div>
+    <div id="myOpenList"></div>
+    <div class="section-title">Your champion pick</div>
+    <div id="myChampionPick"></div>
+  </div>
+
+  <!-- STATS TAB -->
+  <div class="screen" id="screenStats" hidden>
+    <div id="statsContent"></div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tabbar-inner">
+      <button class="tab-btn active" data-tab="bracket"><span class="ic">🏆</span>Bracket</button>
+      <button class="tab-btn" data-tab="mypicks"><span class="ic">🗳️</span>My Picks</button>
+      <button class="tab-btn" data-tab="stats"><span class="ic">📊</span>Stats</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ============== CONFIG ==============
+  var CONFIG = {
+    API_URL: "https://script.google.com/macros/s/AKfycbz8EGTNiqYcMLiJkbtz-2J2RRjJvonEWDLbuVYMgY6c8zWx6WE3ujqqYDFI81whgsuH/exec"
+  };
+
+  var PEOPLE = ["Jeff","Celeste","Jordan","Tori","Kinsey","Paul","Alyssa","Daren"];
+
+  var BRACKET = {"movies":[{"id":"m1","title":"Toy Story","bye":true,"series":"TS","year":1995,"sequelOf":null},{"id":"m2","title":"A Bug's Life","bye":false,"series":null,"year":1998,"sequelOf":null},{"id":"m3","title":"Toy Story 2","bye":false,"series":"TS","year":1999,"sequelOf":"m1"},{"id":"m4","title":"Monsters, Inc.","bye":false,"series":"MU","year":2001,"sequelOf":null},{"id":"m5","title":"Finding Nemo","bye":true,"series":"ND","year":2003,"sequelOf":null},{"id":"m6","title":"The Incredibles","bye":false,"series":"INC","year":2004,"sequelOf":null},{"id":"m7","title":"Cars","bye":false,"series":null,"year":2006,"sequelOf":null},{"id":"m8","title":"Ratatouille","bye":false,"series":null,"year":2007,"sequelOf":null},{"id":"m9","title":"WALL-E","bye":true,"series":null,"year":2008,"sequelOf":null},{"id":"m10","title":"Up","bye":true,"series":null,"year":2009,"sequelOf":null},{"id":"m11","title":"Toy Story 3","bye":false,"series":"TS","year":2010,"sequelOf":"m3"},{"id":"m12","title":"Brave","bye":false,"series":null,"year":2012,"sequelOf":null},{"id":"m13","title":"Monsters University","bye":false,"series":"MU","year":2013,"sequelOf":null},{"id":"m14","title":"Inside Out","bye":true,"series":"IO","year":2015,"sequelOf":null},{"id":"m15","title":"The Good Dinosaur","bye":false,"series":null,"year":2015,"sequelOf":null},{"id":"m16","title":"Finding Dory","bye":false,"series":"ND","year":2016,"sequelOf":"m5"},{"id":"m17","title":"Coco","bye":false,"series":null,"year":2017,"sequelOf":null},{"id":"m18","title":"Incredibles 2","bye":false,"series":"INC","year":2018,"sequelOf":"m6"},{"id":"m19","title":"Toy Story 4","bye":false,"series":"TS","year":2019,"sequelOf":"m11"},{"id":"m20","title":"Onward","bye":false,"series":null,"year":2020,"sequelOf":null},{"id":"m21","title":"Soul","bye":false,"series":null,"year":2020,"sequelOf":null},{"id":"m22","title":"Luca","bye":false,"series":null,"year":2021,"sequelOf":null},{"id":"m23","title":"Elemental","bye":false,"series":null,"year":2023,"sequelOf":null},{"id":"m24","title":"Inside Out 2","bye":false,"series":"IO","year":2024,"sequelOf":"m14"},{"id":"m25","title":"Elio","bye":false,"series":null,"year":2025,"sequelOf":null},{"id":"m26","title":"Hoppers","bye":false,"series":null,"year":2026,"sequelOf":null},{"id":"m27","title":"Toy Story 5","bye":false,"series":"TS","year":2026,"sequelOf":"m19"}],"games":[{"id":"P1","round":"playin","quarter":0,"movieIds":["m24","m16"]},{"id":"P2","round":"playin","quarter":0,"movieIds":["m17","m27"]},{"id":"P3","round":"playin","quarter":0,"movieIds":["m7","m23"]},{"id":"P4","round":"playin","quarter":0,"movieIds":["m6","m3"]},{"id":"P5","round":"playin","quarter":1,"movieIds":["m25","m15"]},{"id":"P6","round":"playin","quarter":1,"movieIds":["m12","m21"]},{"id":"P7","round":"playin","quarter":1,"movieIds":["m13","m22"]},{"id":"P8","round":"playin","quarter":2,"movieIds":["m18","m8"]},{"id":"P9","round":"playin","quarter":2,"movieIds":["m2","m19"]},{"id":"P10","round":"playin","quarter":3,"movieIds":["m20","m11"]},{"id":"P11","round":"playin","quarter":3,"movieIds":["m26","m4"]},{"id":"R1","round":"r16","quarter":0,"slots":[{"ready":false,"sourceGame":"P1"},{"ready":false,"sourceGame":"P2"}]},{"id":"R2","round":"r16","quarter":0,"slots":[{"ready":false,"sourceGame":"P3"},{"ready":false,"sourceGame":"P4"}]},{"id":"R3","round":"r16","quarter":1,"slots":[{"ready":false,"sourceGame":"P5"},{"ready":false,"sourceGame":"P6"}]},{"id":"R4","round":"r16","quarter":1,"slots":[{"ready":true,"movieId":"m9"},{"ready":false,"sourceGame":"P7"}]},{"id":"R5","round":"r16","quarter":2,"slots":[{"ready":false,"sourceGame":"P8"},{"ready":true,"movieId":"m5"}]},{"id":"R6","round":"r16","quarter":2,"slots":[{"ready":false,"sourceGame":"P9"},{"ready":true,"movieId":"m1"}]},{"id":"R7","round":"r16","quarter":3,"slots":[{"ready":false,"sourceGame":"P10"},{"ready":true,"movieId":"m14"}]},{"id":"R8","round":"r16","quarter":3,"slots":[{"ready":false,"sourceGame":"P11"},{"ready":true,"movieId":"m10"}]},{"id":"Q1","round":"qf","quarter":0,"slots":[{"ready":false,"sourceGame":"R1"},{"ready":false,"sourceGame":"R2"}]},{"id":"Q2","round":"qf","quarter":1,"slots":[{"ready":false,"sourceGame":"R3"},{"ready":false,"sourceGame":"R4"}]},{"id":"Q3","round":"qf","quarter":2,"slots":[{"ready":false,"sourceGame":"R5"},{"ready":false,"sourceGame":"R6"}]},{"id":"Q4","round":"qf","quarter":3,"slots":[{"ready":false,"sourceGame":"R7"},{"ready":false,"sourceGame":"R8"}]},{"id":"S1","round":"sf","slots":[{"ready":false,"sourceGame":"Q1"},{"ready":false,"sourceGame":"Q2"}]},{"id":"S2","round":"sf","slots":[{"ready":false,"sourceGame":"Q3"},{"ready":false,"sourceGame":"Q4"}]},{"id":"F1","round":"final","slots":[{"ready":false,"sourceGame":"S1"},{"ready":false,"sourceGame":"S2"}]}]};
+
+  var ROUND_ORDER = ["playin","r16","qf","sf","final"];
+  var ROUND_LABELS = {playin:"Play-In", r16:"Round of 16", qf:"Quarterfinals", sf:"Semifinals", final:"Final"};
+  var ADMIN_PIN = "5207";
+
+  var movieById = {};
+  BRACKET.movies.forEach(function(m){ movieById[m.id] = m; });
+  var gameById = {};
+  BRACKET.games.forEach(function(g){ gameById[g.id] = g; });
+
+  // ============== STATE ==============
+  var state = { bracket: BRACKET, people: PEOPLE, votes: {}, results: {}, championPicks: {} };
+  var myName = null;
+  var activeTab = "bracket";
+  var activeRound = "playin";
+  var adminTapCount = 0, adminTapTimer = null;
+
+  function loadLocal(){
+    try{ myName = localStorage.getItem("bb_name") || null; }catch(e){ myName = null; }
+  }
+  function saveLocalName(n){
+    try{ localStorage.setItem("bb_name", n); }catch(e){}
+  }
+
+  // ============== API ==============
+  function apiGet(){
+    return fetch(CONFIG.API_URL, {method:"GET"}).then(function(r){ return r.json(); }).then(function(s){
+      state = s; return state;
+    }).catch(function(err){ console.warn("poll failed", err); return state; });
+  }
+  function apiPost(body){
+    return fetch(CONFIG.API_URL, {
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify(body)
+    }).then(function(r){ return r.json(); }).then(function(res){
+      if(res.error){ toast(friendlyError(res.error)); throw new Error(res.error); }
+      if(res.state) state = res.state;
+      return res;
+    }).catch(function(err){
+      if(!(err && err.message && friendlyError(err.message) !== "Something went wrong — try again.")){
+        toast("Couldn't reach the bracket — check your connection and try again.");
+      }
+      throw err;
+    });
+  }
+  function friendlyError(code){
+    var map = {
+      already_voted: "You already voted on that one.",
+      already_resolved: "That game's already decided.",
+      game_not_open: "That game isn't open yet.",
+      bad_pin: "Wrong PIN.",
+      already_picked: "You already made your champion pick.",
+      unknown_person: "Pick your name again from the top.",
+    };
+    return map[code] || "Something went wrong — try again.";
+  }
+
+  // ============== BRACKET LOGIC (mirrors Code.gs) ==============
+  function resolveSlot(slot){
+    if(slot.ready) return slot.movieId;
+    var res = state.results[slot.sourceGame];
+    return res ? res.winner : null;
+  }
+  function gameMovies(game){
+    if(game.round === "playin") return game.movieIds.slice();
+    return [resolveSlot(game.slots[0]), resolveSlot(game.slots[1])];
+  }
+  function gameStatus(game){
+    var res = state.results[game.id];
+    if(res) return "done";
+    var movies = gameMovies(game);
+    if(!movies[0] || !movies[1]) return "locked";
+    var votes = state.votes[game.id] || {};
+    if(myName && votes[myName]) return "voted";
+    return "open";
+  }
+
+  // ============== UI HELPERS ==============
+  function $(sel){ return document.querySelector(sel); }
+  function el(tag, cls, html){
+    var e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(html !== undefined) e.innerHTML = html;
+    return e;
+  }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+  function toast(msg){
+    var t = el("div","toast",esc(msg));
+    document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 2600);
+  }
+
+  var HUES = {}; // deterministic flat color per movie
+  function hueFor(id){
+    if(HUES[id]!==undefined) return HUES[id];
+    var h = 0;
+    for(var i=0;i<id.length;i++){ h = (h*31 + id.charCodeAt(i)) % 360; }
+    HUES[id] = h;
+    return h;
+  }
+  function posterStyle(movieId){
+    var h = hueFor(movieId);
+    return "background: hsl("+h+" 46% 32%);";
+  }
+  function posterHtml(movieId, opts){
+    opts = opts || {};
+    var m = movieById[movieId];
+    if(!m) return '<div class="poster" style="background:var(--surface-2);"><div class="p-title" style="color:var(--muted);">TBD</div></div>';
+    var badge = opts.badge ? '<span class="p-badge">'+opts.badge+'</span>' : "";
+    return '<div class="poster" style="'+posterStyle(movieId)+'">'+badge+
+      '<div class="p-title">'+esc(m.title)+'</div><div class="p-year">'+m.year+'</div></div>';
+  }
+
+  // ============== NAME / CHAMPION SCREENS ==============
+  function renderNameGrid(){
+    var grid = $("#nameGrid");
+    grid.innerHTML = "";
+    PEOPLE.forEach(function(p){
+      var b = el("button","name-btn",esc(p));
+      b.onclick = function(){
+        myName = p; saveLocalName(p);
+        render();
+      };
+      grid.appendChild(b);
+    });
+  }
+  function renderChampionGrid(){
+    var grid = $("#championGrid");
+    grid.innerHTML = "";
+    grid.style.gridTemplateColumns = "1fr 1fr";
+    BRACKET.movies.slice().sort(function(a,b){ return a.title.localeCompare(b.title); }).forEach(function(m){
+      var b = el("button","pick-btn","");
+      b.innerHTML = posterHtml(m.id);
+      b.onclick = function(){
+        apiPost({action:"championPick", person: myName, movieId: m.id}).then(function(){
+          render();
+        }).catch(function(){});
+      };
+      grid.appendChild(b);
+    });
+  }
+
+  // ============== BRACKET TAB ==============
+  function roundsWithGames(){
+    return ROUND_ORDER.filter(function(r){ return BRACKET.games.some(function(g){ return g.round===r; }); });
+  }
+  function defaultActiveRound(){
+    for(var i=0;i<ROUND_ORDER.length;i++){
+      var r = ROUND_ORDER[i];
+      var games = BRACKET.games.filter(function(g){ return g.round===r; });
+      if(games.length===0) continue;
+      var allDone = games.every(function(g){ return !!state.results[g.id]; });
+      if(!allDone) return r;
+    }
+    return "final";
+  }
+  function renderRoundTabs(){
+    var wrap = $("#roundTabs");
+    wrap.innerHTML = "";
+    roundsWithGames().forEach(function(r){
+      var games = BRACKET.games.filter(function(g){ return g.round===r; });
+      var doneCount = games.filter(function(g){ return !!state.results[g.id]; }).length;
+      var b = el("button","round-tab"+(r===activeRound?" active":""));
+      b.innerHTML = ROUND_LABELS[r] + ' <span class="cnt">'+doneCount+'/'+games.length+'</span>';
+      b.onclick = function(){ activeRound = r; render(); };
+      wrap.appendChild(b);
+    });
+  }
+  function renderGamesList(){
+    var wrap = $("#gamesList");
+    wrap.innerHTML = "";
+    var games = BRACKET.games.filter(function(g){ return g.round===activeRound; });
+    if(games.length===0){ wrap.appendChild(el("div","placeholder-note","Nothing here yet.")); return; }
+    games.forEach(function(g){ wrap.appendChild(renderGameCard(g)); });
+  }
+  function statusLabel(st){
+    return {locked:"Locked", open:"Open", voted:"Waiting", done:"Final"}[st];
+  }
+  function renderGameCard(game){
+    var card = el("div","game-card");
+    var status = gameStatus(game);
+    var movies = gameMovies(game);
+    var meta = el("div","game-meta");
+    meta.innerHTML = '<span>'+ROUND_LABELS[game.round]+(game.quarter!==undefined?' · Q'+(game.quarter+1):'')+'</span>'+
+      '<span class="status-pill status-'+status+'">'+statusLabel(status)+'</span>';
+    card.appendChild(meta);
+
+    var matchup = el("div","matchup");
+    var res = state.results[game.id];
+    var votes = state.votes[game.id] || {};
+    var myPick = votes[myName] ? votes[myName].movieId : null;
+
+    [0,1].forEach(function(i){
+      var mid = movies[i];
+      if(!mid){
+        var ph = el("div","pick-btn disabled"); ph.innerHTML = posterHtml(null);
+        matchup.appendChild(ph);
+        if(i===0) matchup.appendChild(el("div","vs","vs"));
+        return;
+      }
+      var cls = "pick-btn";
+      var badge = "";
+      if(res){
+        cls += (res.winner===mid) ? " winner" : " loser";
+        if(res.winner===mid) badge = "👑";
+      } else if(myPick===mid){
+        cls += " chosen"; badge = "✓";
+      }
+      var btn = el(status==="open" ? "button" : "div", cls);
+      btn.innerHTML = posterHtml(mid, {badge: badge});
+      if(status==="open"){
+        btn.onclick = function(){ castVote(game.id, mid); };
+      } else if(status !== "done"){
+        btn.classList.add("disabled");
+      }
+      matchup.appendChild(btn);
+      if(i===0) matchup.appendChild(el("div","vs","vs"));
+    });
+    card.appendChild(matchup);
+
+    if(res){
+      var t = res.tally || {};
+      var m0 = movies[0], m1 = movies[1];
+      var row = el("div","tally-row");
+      row.innerHTML = '<span><b>'+(t[m0]||0)+'</b> '+esc(movieById[m0].title)+'</span><span><b>'+(t[m1]||0)+'</b> '+esc(movieById[m1].title)+'</span>';
+      card.appendChild(row);
+      if(res.tie){
+        var coinBox = el("div","card",'<div class="coin">🪙</div><div style="text-align:center;font-size:12px;color:var(--muted);">4–4 tie — coin toss picked <b style="color:var(--ink);">'+esc(movieById[res.winner].title)+'</b></div>');
+        coinBox.style.marginTop = "8px";
+        card.appendChild(coinBox);
+      }
+      var byMovie = {};
+      byMovie[m0] = []; byMovie[m1] = [];
+      Object.keys(votes).forEach(function(p){
+        var v = votes[p];
+        if(v && byMovie[v.movieId]) byMovie[v.movieId].push(p);
+      });
+      var voters = el("div","voters-line");
+      voters.innerHTML = esc(movieById[m0].title)+': '+(byMovie[m0].join(", ")||"—")+'<br>'+esc(movieById[m1].title)+': '+(byMovie[m1].join(", ")||"—");
+      card.appendChild(voters);
+    } else if(movies[0] && movies[1]){
+      var chipRow = el("div","chip-row");
+      PEOPLE.forEach(function(p){
+        var voted = !!votes[p];
+        var chip = el("span","chip"+(voted?" done":""), esc(p)+(voted?" ✓":""));
+        chipRow.appendChild(chip);
+      });
+      card.appendChild(chipRow);
+    }
+    return card;
+  }
+
+  function castVote(gameId, movieId){
+    apiPost({action:"vote", person: myName, gameId: gameId, movieId: movieId}).then(function(){
+      render();
+    }).catch(function(){});
+  }
+
+  // ============== MY PICKS TAB ==============
+  function renderMyPicks(){
+    var wrap = $("#myOpenList");
+    wrap.innerHTML = "";
+    var openGames = BRACKET.games.filter(function(g){ return gameStatus(g)==="open"; });
+    if(openGames.length===0){
+      wrap.appendChild(el("div","placeholder-note","Nothing open for you right now. Check back after the current round wraps up!"));
+    } else {
+      openGames.forEach(function(g){ wrap.appendChild(renderGameCard(g)); });
+    }
+    var champWrap = $("#myChampionPick");
+    champWrap.innerHTML = "";
+    var pick = state.championPicks[myName];
+    if(pick){
+      var card = el("div","card");
+      card.innerHTML = posterHtml(pick);
+      champWrap.appendChild(card);
+    } else {
+      champWrap.appendChild(el("div","placeholder-note","You skipped your champion pick — you can still get badges from voting!"));
+    }
+  }
+
+  // ============== STATS / BADGES ==============
+  function computeBadges(){
+    var scores = {};
+    function addScore(key, person, delta){
+      if(!scores[key].scoreMap[person]) scores[key].scoreMap[person] = 0;
+      scores[key].scoreMap[person] += delta;
+    }
+    var defs = [
+      {key:"speed", emoji:"⚡", label:"Speed Voter", blurb:"First to vote, most often"},
+      {key:"champ", emoji:"🎯", label:"Champion Pick Survivor", blurb:"Their pick went the furthest"},
+      {key:"coinLoss", emoji:"🪙", label:"Coin Flip Victim", blurb:"Lost the most coin tosses"},
+      {key:"contrarian", emoji:"🦄", label:"Contrarian", blurb:"Voted against the room the most"},
+      {key:"crowd", emoji:"🔮", label:"Crowd Reader", blurb:"Voted with the majority the most"},
+      {key:"twins", emoji:"👯", label:"Taste Twins", blurb:"Agreed with each other the most", pair:true},
+      {key:"late", emoji:"🐢", label:"Fashionably Late", blurb:"Last to vote, most often"},
+      {key:"lonewolf", emoji:"🐺", label:"Lone Wolf", blurb:"The only vote, most often (7–1)"},
+      {key:"heartbreak", emoji:"💔", label:"Heartbreaker", blurb:"Lost the most 5–3 nailbiters"},
+      {key:"coinWin", emoji:"🍀", label:"Coin Flip Winner", blurb:"Won the most coin tosses"},
+      {key:"sequel", emoji:"🔁", label:"Sequel Champion", blurb:"Always picks the sequel"},
+      {key:"old", emoji:"📼", label:"Old Soul", blurb:"Votes for the older movie"},
+      {key:"new", emoji:"🆕", label:"New Wave", blurb:"Votes for the newer movie"},
+      {key:"whisperer", emoji:"🏆", label:"Champion Whisperer", blurb:"Backed the eventual champion most"},
+      {key:"mvp", emoji:"🗳️", label:"Family MVP", blurb:"Cast the most votes overall"},
+      {key:"early", emoji:"🌅", label:"Early Bird", blurb:"Votes before 10am most often"},
+    ];
+    defs.forEach(function(d){ scores[d.key] = {def:d, scoreMap:{}}; });
+
+    var pairAgree = {};
+
+    Object.keys(state.results).forEach(function(gid){
+      var res = state.results[gid];
+      var votes = state.votes[gid] || {};
+      var people = Object.keys(votes);
+      var ordered = people.slice().sort(function(a,b){ return votes[a].ts - votes[b].ts; });
+      if(ordered.length){
+        addScore("speed", ordered[0], 1);
+        addScore("late", ordered[ordered.length-1], 1);
+      }
+      people.forEach(function(p){
+        var hr = new Date(votes[p].ts).getUTCHours();
+        var mt = (hr - 6 + 24) % 24;
+        if(mt < 10) addScore("early", p, 1);
+      });
+      if(!res.tie){
+        var t = res.tally;
+        var movies = res.movies;
+        var majorityMovie = t[movies[0]] > t[movies[1]] ? movies[0] : movies[1];
+        people.forEach(function(p){
+          if(votes[p].movieId === majorityMovie) addScore("crowd", p, 1);
+          else addScore("contrarian", p, 1);
+        });
+        var counts = [t[movies[0]], t[movies[1]]];
+        if(counts.indexOf(1) !== -1 && counts.indexOf(7) !== -1){
+          var loneMovie = t[movies[0]]===1 ? movies[0] : movies[1];
+          people.forEach(function(p){ if(votes[p].movieId===loneMovie) addScore("lonewolf", p, 1); });
+        }
+        if((counts[0]===5 && counts[1]===3) || (counts[0]===3 && counts[1]===5)){
+          var losingMovie = t[movies[0]] < t[movies[1]] ? movies[0] : movies[1];
+          people.forEach(function(p){ if(votes[p].movieId===losingMovie) addScore("heartbreak", p, 1); });
+        }
+      } else {
+        people.forEach(function(p){
+          if(votes[p].movieId === res.winner) addScore("coinWin", p, 1);
+          else addScore("coinLoss", p, 1);
+        });
+      }
+      var mA = movieById[res.movies[0]], mB = movieById[res.movies[1]];
+      if(mA.sequelOf === mB.id || mB.sequelOf === mA.id){
+        var sequelId = mA.sequelOf===mB.id ? mA.id : mB.id;
+        people.forEach(function(p){ if(votes[p].movieId===sequelId) addScore("sequel", p, 1); });
+      }
+      if(mA.year !== mB.year){
+        var olderId = mA.year < mB.year ? mA.id : mB.id;
+        var newerId = mA.year < mB.year ? mB.id : mA.id;
+        people.forEach(function(p){
+          if(votes[p].movieId===olderId) addScore("old", p, 1);
+          if(votes[p].movieId===newerId) addScore("new", p, 1);
+        });
+      }
+      for(var i=0;i<people.length;i++){
+        for(var j=i+1;j<people.length;j++){
+          if(votes[people[i]].movieId === votes[people[j]].movieId){
+            var key = [people[i],people[j]].sort().join("|");
+            pairAgree[key] = (pairAgree[key]||0) + 1;
+          }
+        }
+      }
+    });
+
+    var championId = state.results["F1"] ? state.results["F1"].winner : null;
+    PEOPLE.forEach(function(p){
+      var pick = state.championPicks[p];
+      if(!pick) return;
+      var rounds = 0;
+      BRACKET.games.forEach(function(g){
+        var r = state.results[g.id];
+        if(r && r.winner === pick) rounds++;
+      });
+      addScore("champ", p, rounds);
+    });
+    if(championId){
+      Object.keys(state.votes).forEach(function(gid){
+        var votes = state.votes[gid];
+        Object.keys(votes).forEach(function(p){
+          if(votes[p].movieId === championId) addScore("whisperer", p, 1);
+        });
+      });
+    }
+    PEOPLE.forEach(function(p){
+      var total = 0;
+      Object.keys(state.votes).forEach(function(gid){ if(state.votes[gid][p]) total++; });
+      if(total>0) addScore("mvp", p, total);
+    });
+    var bestPair = null, bestPairScore = 0;
+    Object.keys(pairAgree).forEach(function(k){
+      if(pairAgree[k] > bestPairScore){ bestPairScore = pairAgree[k]; bestPair = k; }
+    });
+
+    var badgeCount = {}; PEOPLE.forEach(function(p){ badgeCount[p]=0; });
+    var assigned = [];
+    defs.forEach(function(d){
+      if(d.pair){
+        if(bestPair && bestPairScore>0){
+          var pp = bestPair.split("|");
+          assigned.push({def:d, people:pp, score:bestPairScore});
+          pp.forEach(function(p){ badgeCount[p]++; });
+        }
+        return;
+      }
+      var map = scores[d.key].scoreMap;
+      var candidates = Object.keys(map).filter(function(p){ return map[p] > 0; });
+      if(candidates.length===0) return;
+      candidates.sort(function(a,b){
+        if(map[b]!==map[a]) return map[b]-map[a];
+        if(badgeCount[a]!==badgeCount[b]) return badgeCount[a]-badgeCount[b];
+        return a.localeCompare(b);
+      });
+      var winner = candidates[0];
+      assigned.push({def:d, people:[winner], score:map[winner]});
+      badgeCount[winner]++;
+    });
+
+    return {assigned: assigned, badgeCount: badgeCount};
+  }
+
+  function renderStats(){
+    var wrap = $("#statsContent");
+    wrap.innerHTML = "";
+
+    var finalRes = state.results["F1"];
+    if(finalRes){
+      var champ = movieById[finalRes.winner];
+      var banner = el("div","champion-banner");
+      banner.innerHTML = '<div class="tag">🏆 Family Champion</div><h2>'+esc(champ.title)+'</h2>';
+      wrap.appendChild(banner);
+      if(!window.__confettiShown){
+        window.__confettiShown = true;
+        launchConfetti();
+      }
+    }
+
+    var totalVotes = 0;
+    Object.keys(state.votes).forEach(function(gid){ totalVotes += Object.keys(state.votes[gid]).length; });
+    var totalDone = Object.keys(state.results).length;
+    wrap.appendChild(el("div","section-title","At a Glance"));
+    var glance = el("div","");
+    glance.appendChild(statTile("Games decided", totalDone+" / "+BRACKET.games.length));
+    glance.appendChild(statTile("Total votes cast", String(totalVotes)));
+    var coinTosses = Object.keys(state.results).filter(function(g){ return state.results[g].tie; }).length;
+    glance.appendChild(statTile("Coin tosses so far", String(coinTosses)));
+    wrap.appendChild(glance);
+
+    var b = computeBadges();
+    wrap.appendChild(el("div","section-title","Badges"));
+    if(b.assigned.length===0){
+      wrap.appendChild(el("div","placeholder-note","Badges show up once a few games are decided."));
+    } else {
+      var grid = el("div","badge-grid");
+      b.assigned.forEach(function(a){
+        var card = el("div","badge-card");
+        card.innerHTML = '<div class="em">'+a.def.emoji+'</div><div class="nm">'+esc(a.def.label)+'</div>'+
+          '<div class="bp">'+esc(a.people.join(" & "))+'</div>';
+        grid.appendChild(card);
+      });
+      wrap.appendChild(grid);
+    }
+
+    wrap.appendChild(el("div","section-title","Champion Pick Scoreboard"));
+    var cpWrap = el("div","table-wrap");
+    var rows = PEOPLE.map(function(p){
+      var pick = state.championPicks[p];
+      var rounds = 0;
+      if(pick){ BRACKET.games.forEach(function(g){ var r=state.results[g.id]; if(r && r.winner===pick) rounds++; }); }
+      return {p:p, pick:pick, rounds:rounds};
+    }).sort(function(a,b){ return b.rounds - a.rounds; });
+    var tbl = '<table class="simple"><tr><th>Person</th><th>Pick</th><th>Rounds won</th></tr>';
+    rows.forEach(function(r){
+      tbl += '<tr><td>'+esc(r.p)+'</td><td>'+(r.pick?esc(movieById[r.pick].title):"—")+'</td><td class="mono">'+r.rounds+'</td></tr>';
+    });
+    tbl += '</table>';
+    cpWrap.innerHTML = tbl;
+    wrap.appendChild(cpWrap);
+
+    var closest = Object.keys(state.results).map(function(gid){ return {gid:gid, res: state.results[gid]}; })
+      .filter(function(x){ return !x.res.forced; })
+      .filter(function(x){
+        var t = x.res.tally; var vals = Object.values(t);
+        return x.res.tie || Math.abs(vals[0]-vals[1])<=2;
+      });
+    if(closest.length){
+      wrap.appendChild(el("div","section-title","Nailbiters"));
+      var cWrap = el("div","table-wrap");
+      var ctbl = '<table class="simple"><tr><th>Game</th><th>Score</th><th>Result</th></tr>';
+      closest.forEach(function(x){
+        var t = x.res.tally; var m0=x.res.movies[0], m1=x.res.movies[1];
+        ctbl += '<tr><td>'+esc(movieById[m0].title)+' vs '+esc(movieById[m1].title)+'</td><td class="mono">'+(t[m0]||0)+'–'+(t[m1]||0)+'</td><td>'+(x.res.tie?'🪙 Coin toss':esc(movieById[x.res.winner].title)+' wins')+'</td></tr>';
+      });
+      ctbl += '</table>';
+      cWrap.innerHTML = ctbl;
+      wrap.appendChild(cWrap);
+    }
+
+    var unanimous = Object.keys(state.results).filter(function(gid){
+      var r = state.results[gid]; if(r.forced) return false;
+      var vals = Object.values(r.tally);
+      return vals.indexOf(8)!==-1;
+    });
+    if(unanimous.length){
+      wrap.appendChild(el("div","section-title","Unanimous Decisions (8–0)"));
+      var uList = el("div","chip-row");
+      unanimous.forEach(function(gid){
+        var r = state.results[gid];
+        uList.appendChild(el("span","chip done", esc(movieById[r.winner].title)));
+      });
+      wrap.appendChild(uList);
+    }
+  }
+  function statTile(label, value){
+    var t = el("div","stat-tile");
+    t.innerHTML = '<span class="label">'+esc(label)+'</span><span class="value">'+esc(value)+'</span>';
+    return t;
+  }
+
+  function launchConfetti(){
+    if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var colors = ["#ff5a3c","#e7a91b","#127770","#ffd166"];
+    for(var i=0;i<40;i++){
+      (function(){
+        var p = document.createElement("div");
+        p.className = "confetti-piece";
+        var size = 6 + Math.random()*6;
+        p.style.width = size+"px"; p.style.height = (size*0.4)+"px";
+        p.style.left = (Math.random()*100)+"vw";
+        p.style.background = colors[Math.floor(Math.random()*colors.length)];
+        p.style.transform = "rotate("+(Math.random()*360)+"deg)";
+        document.body.appendChild(p);
+        var duration = 2200 + Math.random()*1800;
+        var drift = (Math.random()-0.5)*160;
+        p.animate([
+          {transform:p.style.transform+" translate(0,0)", opacity:1},
+          {transform:"translate("+drift+"px, 100vh) rotate("+(Math.random()*720)+"deg)", opacity:0.9}
+        ], {duration:duration, easing:"ease-in"}).onfinish = function(){ p.remove(); };
+      })();
+    }
+  }
+
+  // ============== ADMIN ==============
+  function setupAdminTap(){
+    $("#titleTap").addEventListener("click", function(){
+      adminTapCount++;
+      clearTimeout(adminTapTimer);
+      adminTapTimer = setTimeout(function(){ adminTapCount = 0; }, 2500);
+      if(adminTapCount>=5){
+        adminTapCount = 0;
+        openAdminPinModal();
+      }
+    });
+  }
+  function openAdminPinModal(){
+    var content = el("div","");
+    content.innerHTML = '<h3>Admin</h3><p class="lead" style="margin-bottom:6px;">Enter the PIN.</p>';
+    var input = el("input","field");
+    input.type = "password"; input.inputMode = "numeric"; input.placeholder = "PIN";
+    content.appendChild(input);
+    var row = el("div","btn-row");
+    var go = el("button","btn","Enter");
+    var cancel = el("button","btn secondary","Cancel");
+    row.appendChild(go); row.appendChild(cancel);
+    content.appendChild(row);
+    var close = showModal(content);
+    cancel.onclick = close;
+    go.onclick = function(){
+      if(input.value === ADMIN_PIN){ close(); openAdminPanel(); }
+      else toast("Wrong PIN.");
+    };
+  }
+  function openAdminPanel(){
+    var content = el("div","");
+    content.innerHTML = '<h3>Admin panel</h3>';
+    var resetBtn = el("button","btn danger","Reset entire bracket");
+    resetBtn.style.marginBottom = "14px";
+    resetBtn.onclick = confirmReset;
+    content.appendChild(resetBtn);
+
+    content.appendChild(el("div","section-title","Games"));
+    BRACKET.games.forEach(function(g){
+      var row = el("div","admin-row");
+      var res = state.results[g.id];
+      var movies = gameMovies(g);
+      var label = movies[0] && movies[1] ? (movieById[movies[0]].title+" vs "+movieById[movies[1]].title) : (g.id+" (not open)");
+      var status = res ? ("✓ "+movieById[res.winner].title) : "pending";
+      row.innerHTML = '<span>'+esc(g.id)+': '+esc(label)+'<br><span style="color:var(--muted);">'+esc(status)+'</span></span>';
+      var btns = el("div","btn-row");
+      if(res){
+        var undoBtn = el("button","btn secondary","Undo");
+        undoBtn.onclick = function(gid){ return function(){ adminAction("admin_undo",{gameId:gid}); }; }(g.id);
+        btns.appendChild(undoBtn);
+      } else if(movies[0] && movies[1]) {
+        var f0 = el("button","btn secondary","Force "+movieById[movies[0]].title);
+        f0.onclick = function(gid,mid){ return function(){ adminAction("admin_force",{gameId:gid, movieId:mid}); }; }(g.id, movies[0]);
+        var f1 = el("button","btn secondary","Force "+movieById[movies[1]].title);
+        f1.onclick = function(gid,mid){ return function(){ adminAction("admin_force",{gameId:gid, movieId:mid}); }; }(g.id, movies[1]);
+        btns.appendChild(f0); btns.appendChild(f1);
+      }
+      row.appendChild(btns);
+      content.appendChild(row);
+    });
+    showModal(content);
+  }
+  function confirmReset(){
+    var content = el("div","");
+    content.innerHTML = '<h3>Reset everything?</h3><p class="lead">This clears every vote, result, and champion pick. Type RESET to confirm.</p>';
+    var input = el("input","field");
+    content.appendChild(input);
+    var row = el("div","btn-row");
+    var go = el("button","btn danger","Reset");
+    var cancel = el("button","btn secondary","Cancel");
+    row.appendChild(go); row.appendChild(cancel);
+    content.appendChild(row);
+    var close = showModal(content);
+    cancel.onclick = close;
+    go.onclick = function(){
+      if(input.value.trim().toUpperCase()==="RESET"){
+        close();
+        adminAction("admin_reset",{});
+      } else toast("Type RESET exactly to confirm.");
+    };
+  }
+  function adminAction(action, extra){
+    var body = Object.assign({action:action, pin: ADMIN_PIN}, extra);
+    apiPost(body).then(function(){
+      closeModal();
+      render();
+      toast("Done.");
+    }).catch(function(){});
+  }
+
+  // ============== MODAL ==============
+  var modalCloseFn = null;
+  function showModal(contentEl){
+    closeModal();
+    var backdrop = el("div","modal-backdrop");
+    var modal = el("div","modal");
+    modal.appendChild(contentEl);
+    backdrop.appendChild(modal);
+    backdrop.addEventListener("click", function(e){ if(e.target===backdrop) closeModal(); });
+    $("#modalRoot").appendChild(backdrop);
+    modalCloseFn = function(){ backdrop.remove(); modalCloseFn = null; };
+    return modalCloseFn;
+  }
+  function closeModal(){ if(modalCloseFn) modalCloseFn(); }
+
+  // ============== WHO PILL / SWITCH NAME ==============
+  function renderWhoPill(){
+    var pill = $("#whoPill");
+    if(!myName){ pill.hidden = true; return; }
+    pill.hidden = false;
+    $("#whoDot").textContent = myName[0];
+    $("#whoName").textContent = myName;
+  }
+  var whoPillEl = $("#whoPill");
+  if(whoPillEl) whoPillEl.addEventListener("click", function(){
+    var content = el("div","");
+    content.innerHTML = '<h3>Switch name</h3><p class="lead">Voting as <b>'+esc(myName)+'</b>. Pick a different name below.</p>';
+    var grid = el("div","name-grid");
+    PEOPLE.forEach(function(p){
+      var b = el("button","name-btn",esc(p));
+      b.onclick = function(){ myName = p; saveLocalName(p); closeModal(); render(); };
+      grid.appendChild(b);
+    });
+    content.appendChild(grid);
+    showModal(content);
+  });
+
+  // ============== TABS ==============
+  document.querySelectorAll(".tab-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      activeTab = btn.getAttribute("data-tab");
+      render();
+    });
+  });
+
+  $("#skipChampion").addEventListener("click", function(){ render(true); });
+
+  // ============== MAIN RENDER ==============
+  function render(forceSkipChampion){
+    renderWhoPill();
+
+    var needsName = !myName;
+    var needsChampion = !needsName && !state.championPicks[myName] && !forceSkipChampion && !window["__skipChamp_"+myName];
+    if(forceSkipChampion) window["__skipChamp_"+myName] = true;
+
+    $("#screenName").hidden = !needsName;
+    $("#screenChampionPick").hidden = !(!needsName && needsChampion);
+    var showMain = !needsName && !needsChampion;
+    $("#screenBracket").hidden = !(showMain && activeTab==="bracket");
+    $("#screenMyPicks").hidden = !(showMain && activeTab==="mypicks");
+    $("#screenStats").hidden = !(showMain && activeTab==="stats");
+    document.querySelector(".tabbar").style.display = showMain ? "flex" : "none";
+
+    document.querySelectorAll(".tab-btn").forEach(function(btn){
+      btn.classList.toggle("active", btn.getAttribute("data-tab")===activeTab);
+    });
+
+    if(needsName){ renderNameGrid(); return; }
+    if(needsChampion){ renderChampionGrid(); return; }
+
+    if(activeTab==="bracket"){
+      if(roundsWithGames().indexOf(activeRound)===-1) activeRound = defaultActiveRound();
+      renderRoundTabs();
+      renderGamesList();
+    } else if(activeTab==="mypicks"){
+      renderMyPicks();
+    } else if(activeTab==="stats"){
+      renderStats();
+    }
+  }
+
+  // ============== BOOT ==============
+  function boot(){
+    loadLocal();
+    activeRound = defaultActiveRound();
+    setupAdminTap();
+    render();
+    apiGet().then(function(){ activeRound = defaultActiveRound(); render(); });
+    setInterval(function(){
+      apiGet().then(function(){ render(); });
+    }, 5000);
+  }
+
+  boot();
+})();
+</script>
+
+</body>
+</html>
