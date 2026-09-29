@@ -110,9 +110,9 @@
     border-radius:12px; padding:14px 12px; color:#fff; position:relative; overflow:hidden;
     display:flex; flex-direction:column; justify-content:flex-end; min-height:92px;
   }
-  .poster .p-title{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; text-wrap:balance; }
-  .poster .p-year{ font-size:10px; opacity:0.85; font-weight:600; margin-top:2px; }
-  .poster .p-badge{ position:absolute; top:8px; right:8px; font-size:16px; }
+  .poster .p-title{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; text-wrap:balance; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
+  .poster .p-year{ font-size:10px; opacity:0.9; font-weight:600; margin-top:2px; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
+  .poster .p-badge{ position:absolute; top:8px; right:8px; font-size:16px; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
 
   /* ---------- Round tabs ---------- */
   .round-tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:14px; }
@@ -380,7 +380,7 @@
     setTimeout(function(){ t.remove(); }, 2600);
   }
 
-  var HUES = {}; // deterministic flat color per movie
+  var HUES = {}; // deterministic flat color per movie (fallback if a poster fails to load)
   function hueFor(id){
     if(HUES[id]!==undefined) return HUES[id];
     var h = 0;
@@ -388,9 +388,20 @@
     HUES[id] = h;
     return h;
   }
+  var TMDB_IMG_BASE = "https://image.tmdb.org/t/p/w342";
+  var POSTERS = {"m1":"/uXDfjJbdP4ijW5hWSBrPrlKpxab.jpg","m2":"/Ah3J9OJVc2CNCuH2zMydXy9fmIC.jpg","m3":"/4rbcp3ng8n1MKHjpeqW0L7Fnpzz.jpg","m4":"/wFSpyMsp7H0ttERbxY7Trlv8xry.jpg","m5":"/eHuGQ10FUzK1mdOY69wF5pGgEf5.jpg","m6":"/2LqaLgk4Z226KkgPJuiOQ58wvrm.jpg","m7":"/2Touk3m5gzsqr1VsvxypdyHY5ci.jpg","m8":"/t3vaWRPSf6WjDSamIkKDs1iQWna.jpg","m9":"/hbhFnRzzg6ZDmm8YAmxBnQpQIPh.jpg","m10":"/mFvoEwSfLqbcWwFsDjQebn9bzFe.jpg","m11":"/AbbXspMOwdvwWZgVN0nabZq03Ec.jpg","m12":"/1XAuDtMWpL0sYSFK0R6EZate2Ux.jpg","m13":"/y7thwJ7z5Bplv6vwl6RI0yteaDD.jpg","m14":"/2H1TmgdfNtsKlU9jKdeNyYL5y8T.jpg","m15":"/8RSkxOO80btfKjyiC5ZiTaCHIT8.jpg","m16":"/3UVe8NL1E2ZdUZ9EDlKGJY5UzE.jpg","m17":"/6Ryitt95xrO8KXuqRGm1fUuNwqF.jpg","m18":"/9lFKBtaVIhP7E2Pk0IY1CwTKTMZ.jpg","m19":"/w9kR8qbmQ01HwnvK4alvnQ2ca0L.jpg","m20":"/f4aul3FyD3jv3v4bul1IrkWZvzq.jpg","m21":"/hm58Jw4Lw8OIeECIq5qyPYhAeRJ.jpg","m22":"/9x4i9uKGXt8IiiIF5Ey0DIoY738.jpg","m23":"/4Y1WNkd88JXmGfhtWR7dmDAo1T2.jpg","m24":"/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg","m25":"/7z8jDiTZZco9moIKpTUImFtTy7o.jpg","m26":"/xjtWQ2CL1mpmMNwuU5HeS4Iuwuu.jpg","m27":"/sfQtVlIHljToOwYjhe21KPGzZWK.jpg"};
   function posterStyle(movieId){
     var h = hueFor(movieId);
-    return "background: hsl("+h+" 46% 32%);";
+    var path = POSTERS[movieId];
+    var css = "background-color: hsl("+h+" 46% 32%);";
+    if(path){
+      // Heavy bottom-weighted scrim so the title/year stay readable over
+      // any poster, with the flat color still showing through as a
+      // fallback if the TMDB image fails to load.
+      css += " background-image: linear-gradient(180deg, rgba(10,10,10,0.25) 0%, rgba(10,10,10,0.35) 45%, rgba(10,10,10,0.9) 100%), url('"+TMDB_IMG_BASE+path+"');" +
+        " background-size: cover; background-position: center;";
+    }
+    return css;
   }
   function posterHtml(movieId, opts){
     opts = opts || {};
