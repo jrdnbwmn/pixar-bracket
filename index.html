@@ -104,7 +104,8 @@
     width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
     filter:none; box-shadow:0 1px 4px rgba(0,0,0,0.5);
   }
-  .poster .p-badge-check{ background:#fff; color:var(--teal); font-weight:700; }
+  .poster .p-badge-check{ background:var(--teal); color:#fff; font-weight:700; }
+  .poster .p-badge-check svg{ width:14px; height:14px; display:block; }
   .poster .p-badge-crown{ background:var(--gold); }
 
   /* ---------- Round tabs ---------- */
@@ -130,7 +131,7 @@
   .pick-btn{ display:block; width:100%; text-align:left; border:2px solid transparent; border-radius:12px; cursor:pointer; padding:0; background:none; }
   .pick-btn .poster{ min-height:78px; }
   .pick-btn.disabled{ cursor:default; }
-  .pick-btn.chosen .poster{ outline:3px solid #fff; outline-offset:-3px; }
+  .pick-btn.chosen .poster{ outline:3px solid #FFF478; outline-offset:-3px; }
   .pick-btn.winner .poster{ outline:3px solid var(--gold); outline-offset:-3px; }
   .pick-btn.loser .poster{ opacity:0.55; }
 
@@ -401,11 +402,13 @@
     }
     return css;
   }
+  var CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9.9997 15.1709L19.1921 5.97852L20.6063 7.39273L9.9997 17.9993L3.63574 11.6354L5.04996 10.2212L9.9997 15.1709Z"></path></svg>';
   function posterHtml(movieId, opts){
     opts = opts || {};
     var m = movieById[movieId];
     if(!m) return '<div class="poster" style="background:var(--surface-2);"><div class="p-title" style="color:var(--muted);">TBD</div></div>';
-    var badge = opts.badge ? '<span class="p-badge p-badge-'+(opts.badgeType||"plain")+'">'+opts.badge+'</span>' : "";
+    var badgeContent = (opts.badgeType==="check") ? CHECK_SVG : opts.badge;
+    var badge = opts.badge ? '<span class="p-badge p-badge-'+(opts.badgeType||"plain")+'">'+badgeContent+'</span>' : "";
     return '<div class="poster" style="'+posterStyle(movieId)+'">'+badge+
       '<div class="p-title">'+esc(m.title)+'</div><div class="p-year">'+m.year+'</div></div>';
   }
