@@ -433,6 +433,11 @@
       var b = el("button","pick-btn","");
       b.innerHTML = posterHtml(m.id);
       b.onclick = function(){
+        // Guard against double-submit: if a pick is already in flight or
+        // already recorded, ignore a second click instead of firing a
+        // duplicate request.
+        if(pendingChampion || state.championPicks[myName]) return;
+
         // Optimistic: lock in the pick and move on to the bracket screen
         // immediately (that screen switch IS the visual feedback here),
         // reconciling with the server in the background.
@@ -442,8 +447,12 @@
         apiPost({action:"championPick", person: myName, movieId: m.id}).then(function(){
           pendingChampion = null;
           render();
-        }).catch(function(){
+        }).catch(function(err){
           pendingChampion = null;
+          // "already_picked" means an earlier request already succeeded
+          // server-side — the optimistic pick already showing is correct,
+          // don't erase it.
+          if(err && err.message === "already_picked") { render(); return; }
           delete state.championPicks[myName];
           render();
         });
@@ -563,6 +572,13 @@
   }
 
   function castVote(gameId, movieId){
+    // Guard against double-submit (double-tap, or a click landing again
+    // before the screen finishes re-rendering): if this vote is already
+    // in flight or already recorded (optimistically or confirmed), a
+    // second click is a no-op rather than firing a duplicate request.
+    if(pendingVotes[gameId]) return;
+    if(state.votes[gameId] && state.votes[gameId][myName]) return;
+
     // Optimistic UI: show the checkmark immediately, reconcile with the
     // server in the background. Apps Script round-trips can take a
     // couple of seconds, and nobody should have to stare at an
@@ -570,7 +586,6 @@
     // as not-yet-confirmed so the background poll can't clobber it with
     // a response generated before the vote landed on the server.
     if(!state.votes[gameId]) state.votes[gameId] = {};
-    var prevVote = state.votes[gameId][myName] || null;
     var ts = Date.now();
     pendingVotes[gameId] = {movieId: movieId, ts: ts};
     state.votes[gameId][myName] = {movieId: movieId, ts: ts, pending: true};
@@ -579,11 +594,13 @@
     apiPost({action:"vote", person: myName, gameId: gameId, movieId: movieId}).then(function(){
       delete pendingVotes[gameId];
       render();
-    }).catch(function(){
+    }).catch(function(err){
       delete pendingVotes[gameId];
-      // Roll back the optimistic vote if the server rejected it.
-      if(prevVote){ state.votes[gameId][myName] = prevVote; }
-      else { delete state.votes[gameId][myName]; }
+      // "already_voted" means an earlier request for this same vote
+      // already succeeded server-side — that's not a failure to roll
+      // back, the optimistic vote already showing is the correct one.
+      if(err && err.message === "already_voted") { render(); return; }
+      delete state.votes[gameId][myName];
       render();
     });
   }
