@@ -104,7 +104,7 @@
     width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
     filter:none; box-shadow:0 1px 4px rgba(0,0,0,0.5);
   }
-  .poster .p-badge-check{ background:var(--teal); color:#fff; font-weight:700; }
+  .poster .p-badge-check{ background:#3FA9E0; color:#fff; font-weight:700; }
   .poster .p-badge-check svg{ width:14px; height:14px; display:block; }
   .poster .p-badge-crown{ background:var(--gold); }
 
@@ -131,7 +131,7 @@
   .pick-btn{ display:block; width:100%; text-align:left; border:2px solid transparent; border-radius:12px; cursor:pointer; padding:0; background:none; }
   .pick-btn .poster{ min-height:78px; }
   .pick-btn.disabled{ cursor:default; }
-  .pick-btn.chosen .poster{ outline:3px solid #FFF478; outline-offset:-3px; }
+  .pick-btn.chosen .poster{ outline:3px solid #3FA9E0; outline-offset:-3px; }
   .pick-btn.winner .poster{ outline:3px solid var(--gold); outline-offset:-3px; }
   .pick-btn.loser .poster{ opacity:0.55; }
 
@@ -140,7 +140,8 @@
   .voters-line{ font-size:11px; color:var(--muted); margin-top:6px; line-height:1.5; }
   .chip-row{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
   .chip{ background:var(--surface-2); border-radius:999px; padding:3px 9px; font-size:11px; font-weight:600; color:var(--muted); }
-  .chip.done{ background:rgba(18,119,112,0.14); color:var(--teal); }
+  .chip.done{ background:rgba(18,119,112,0.14); color:var(--teal); display:inline-flex; align-items:center; gap:3px; }
+  .chip .chip-check{ width:10px; height:10px; display:block; }
 
   .placeholder-note{ text-align:center; color:var(--muted); font-size:13px; padding:30px 10px; }
 
@@ -169,7 +170,8 @@
   .badge-card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px; text-align:center; }
   .badge-card .em{ font-size:26px; }
   .badge-card .nm{ font-weight:700; font-size:12px; margin-top:4px; }
-  .badge-card .bp{ font-size:10px; color:var(--muted); margin-top:2px; }
+  .badge-card .desc{ font-size:10px; color:var(--muted); margin-top:3px; line-height:1.3; }
+  .badge-card .bp{ font-size:11px; color:var(--ink); font-weight:600; margin-top:6px; }
 
   .champion-banner{ background:var(--gold); color:#241a04; border-radius:20px; padding:24px 16px; text-align:center; margin-bottom:18px; }
   .champion-banner .tag{ font-size:11px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; opacity:0.75; }
@@ -528,7 +530,7 @@
       var chipRow = el("div","chip-row");
       PEOPLE.forEach(function(p){
         var voted = !!votes[p];
-        var chip = el("span","chip"+(voted?" done":""), esc(p)+(voted?" ✓":""));
+        var chip = el("span","chip"+(voted?" done":""), esc(p)+(voted?' <span class="chip-check">'+CHECK_SVG+'</span>':""));
         chipRow.appendChild(chip);
       });
       card.appendChild(chipRow);
@@ -780,6 +782,7 @@
       b.assigned.forEach(function(a){
         var card = el("div","badge-card");
         card.innerHTML = '<div class="em">'+a.def.emoji+'</div><div class="nm">'+esc(a.def.label)+'</div>'+
+          '<div class="desc">'+esc(a.def.blurb)+'</div>'+
           '<div class="bp">'+esc(a.people.join(" & "))+'</div>';
         grid.appendChild(card);
       });
