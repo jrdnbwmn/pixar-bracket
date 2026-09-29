@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#fdfaf1; --surface:#ffffff; --surface-2:#f6f1e4; --ink:#211d1a; --muted:#7a7263;
@@ -21,12 +21,12 @@
   *{box-sizing:border-box;}
   html,body{ height:100%; }
   body{
-    background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); font-family:'Geist',system-ui,sans-serif;
     margin:0; padding:0 16px; min-height:100%;
     padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   }
-  h1,h2,h3,.display{ font-family:'Fraunces',Georgia,serif; text-wrap:balance; }
-  .mono{ font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; }
+  h1,h2,h3,.display{ font-family:'Geist',system-ui,sans-serif; text-wrap:balance; }
+  .mono{ font-family:'Geist Mono',monospace; font-variant-numeric:tabular-nums; }
   a{ color:var(--teal); }
   button{ font-family:inherit; }
   [hidden]{ display:none !important; }
@@ -74,7 +74,7 @@
   .name-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .name-btn{
     background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px 10px;
-    font-family:'Fraunces',serif; font-size:18px; font-weight:600; color:var(--ink); cursor:pointer;
+    font-family:'Geist',system-ui,sans-serif; font-size:18px; font-weight:600; color:var(--ink); cursor:pointer;
     box-shadow:0 1px 0 var(--shadow);
   }
   .name-btn:active{ transform:scale(0.98); }
@@ -97,14 +97,14 @@
     border-radius:12px; padding:14px 12px; color:#fff; position:relative; overflow:hidden;
     display:flex; flex-direction:column; justify-content:flex-end; min-height:92px;
   }
-  .poster .p-title{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; text-wrap:balance; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
+  .poster .p-title{ font-family:'Geist',system-ui,sans-serif; font-weight:700; font-size:15px; line-height:1.15; text-wrap:balance; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
   .poster .p-year{ font-size:10px; opacity:0.9; font-weight:600; margin-top:2px; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
   .poster .p-badge{ position:absolute; top:8px; right:8px; font-size:15px; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
   .poster .p-badge-check, .poster .p-badge-crown{
     width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
     filter:none; box-shadow:0 1px 4px rgba(0,0,0,0.5);
   }
-  .poster .p-badge-check{ background:#3FA9E0; color:#fff; font-weight:700; }
+  .poster .p-badge-check{ background:#fff; color:#3FA9E0; font-weight:700; }
   .poster .p-badge-check svg{ width:14px; height:14px; display:block; }
   .poster .p-badge-crown{ background:var(--gold); }
 
@@ -127,11 +127,18 @@
   .status-done{ background:rgba(231,169,27,0.18); color:var(--gold); }
 
   .matchup{ display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:stretch; }
-  .matchup .vs{ align-self:center; font-family:'Fraunces',serif; font-weight:600; color:var(--muted); font-size:12px; }
+  .matchup .vs{ align-self:center; font-family:'Geist',system-ui,sans-serif; font-weight:600; color:var(--muted); font-size:12px; }
   .pick-btn{ display:block; width:100%; text-align:left; border:2px solid transparent; border-radius:12px; cursor:pointer; padding:0; background:none; }
   .pick-btn .poster{ min-height:78px; }
   .pick-btn.disabled{ cursor:default; }
   .pick-btn.chosen .poster{ outline:3px solid #3FA9E0; outline-offset:-3px; }
+  @keyframes voteConfirmPulse{
+    0%{ transform:scale(1); }
+    35%{ transform:scale(1.045); }
+    100%{ transform:scale(1); }
+  }
+  .pick-btn.pulse .poster{ animation:voteConfirmPulse 0.42s ease-out; }
+  .pick-btn.pulse .p-badge-check{ animation:voteConfirmPulse 0.42s ease-out 0.05s; }
   .pick-btn.winner .poster{ outline:3px solid var(--gold); outline-offset:-3px; }
   .pick-btn.loser .poster{ opacity:0.55; }
 
@@ -160,7 +167,7 @@
   /* ---------- Stats ---------- */
   .stat-tile{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .stat-tile .label{ font-size:13px; font-weight:600; }
-  .stat-tile .value{ font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; color:var(--teal); }
+  .stat-tile .value{ font-family:'Geist Mono',monospace; font-weight:700; font-size:14px; color:var(--teal); }
   table.simple{ width:100%; border-collapse:collapse; font-size:13px; }
   table.simple th{ text-align:left; color:var(--muted); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; padding:6px 4px; border-bottom:1px solid var(--line); }
   table.simple td{ padding:8px 4px; border-bottom:1px solid var(--line); }
@@ -270,6 +277,7 @@
   // with stale data (Apps Script GETs can also come back browser-cached).
   var pendingVotes = {}; // gameId -> {movieId, ts}
   var pendingChampion = null; // movieId, or null
+  var justVotedKey = null; // "<gameId>|<movieId>" — briefly set right after a vote, to trigger a one-time pulse animation without replaying it on every subsequent render/poll
 
   function loadLocal(){
     try{ myName = localStorage.getItem("bb_name") || null; }catch(e){ myName = null; }
@@ -493,6 +501,7 @@
         if(res.winner===mid){ badge = "👑"; badgeType = "crown"; }
       } else if(myPick===mid){
         cls += " chosen"; badge = "✓"; badgeType = "check";
+        if(justVotedKey === (game.id+"|"+mid)) cls += " pulse";
       }
       var btn = el(status==="open" ? "button" : "div", cls);
       btn.innerHTML = posterHtml(mid, {badge: badge, badgeType: badgeType});
@@ -556,7 +565,9 @@
     var ts = Date.now();
     pendingVotes[gameId] = {movieId: movieId, ts: ts};
     state.votes[gameId][myName] = {movieId: movieId, ts: ts, pending: true};
+    justVotedKey = gameId+"|"+movieId;
     render();
+    setTimeout(function(){ justVotedKey = null; }, 500);
 
     apiPost({action:"vote", person: myName, gameId: gameId, movieId: movieId}).then(function(){
       delete pendingVotes[gameId];
