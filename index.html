@@ -16,22 +16,8 @@
     --danger:#c23b3b;
     color-scheme:light;
   }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#15130f; --surface:#1f1c17; --surface-2:#26221b; --ink:#f3ede1; --muted:#a89d88;
-      --accent:#ff7a56; --accent-ink:#1a0d08; --gold:#f0bd3e; --teal:#4fc3b7; --teal-ink:#06201d;
-      --line:rgba(243,237,225,0.14); --shadow:rgba(0,0,0,0.4);
-      --danger:#ff6b6b;
-      color-scheme:dark;
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#15130f; --surface:#1f1c17; --surface-2:#26221b; --ink:#f3ede1; --muted:#a89d88;
-    --accent:#ff7a56; --accent-ink:#1a0d08; --gold:#f0bd3e; --teal:#4fc3b7; --teal-ink:#06201d;
-    --line:rgba(243,237,225,0.14); --shadow:rgba(0,0,0,0.4);
-    --danger:#ff6b6b;
-    color-scheme:dark;
-  }
+  /* Dark mode intentionally disabled — this page always uses the light
+     palette above, regardless of the device's OS-level theme setting. */
   *{box-sizing:border-box;}
   html,body{ height:100%; }
   body{
@@ -144,7 +130,7 @@
   .pick-btn{ display:block; width:100%; text-align:left; border:2px solid transparent; border-radius:12px; cursor:pointer; padding:0; background:none; }
   .pick-btn .poster{ min-height:78px; }
   .pick-btn.disabled{ cursor:default; }
-  .pick-btn.chosen .poster{ outline:3px solid var(--teal); outline-offset:-3px; }
+  .pick-btn.chosen .poster{ outline:3px solid #fff; outline-offset:-3px; }
   .pick-btn.winner .poster{ outline:3px solid var(--gold); outline-offset:-3px; }
   .pick-btn.loser .poster{ opacity:0.55; }
 
@@ -207,6 +193,13 @@
       <span class="dot" id="whoDot">?</span>
       <span id="whoName">—</span>
     </button>
+  </div>
+
+  <!-- LOADING (shown only while we wait to hear from the server the
+       first time, so a returning voter isn't flashed the champion-pick
+       screen before we know they already picked) -->
+  <div class="screen" id="screenLoading" hidden style="padding-top:60px;text-align:center;color:var(--muted);">
+    Loading…
   </div>
 
   <!-- NAME PICKER -->
@@ -444,22 +437,27 @@
         // already recorded, ignore a second click instead of firing a
         // duplicate request.
         if(pendingChampion || state.championPicks[myName]) return;
-
-        // Optimistic: lock in the pick and move on to the bracket screen
-        // immediately (that screen switch IS the visual feedback here),
-        // reconciling with the server in the background.
         pendingChampion = m.id;
+
+        // Visible confirmation before moving on: lock the grid, show a
+        // checkmark on the chosen poster, and toast the pick — then
+        // hold on this screen for a beat so it doesn't feel like the
+        // click did nothing before jumping to the bracket.
+        grid.querySelectorAll(".pick-btn").forEach(function(btn){ btn.disabled = true; btn.style.opacity = (btn===b) ? "1" : "0.4"; });
+        b.innerHTML = posterHtml(m.id, {badge:"✓", badgeType:"check"});
+        toast("Champion locked in: " + m.title);
+
         state.championPicks[myName] = m.id;
-        render();
+        setTimeout(function(){ render(); }, 700);
+
         apiPost({action:"championPick", person: myName, movieId: m.id}).then(function(){
           pendingChampion = null;
-          render();
         }).catch(function(err){
           pendingChampion = null;
           // "already_picked" means an earlier request already succeeded
           // server-side — the optimistic pick already showing is correct,
           // don't erase it.
-          if(err && err.message === "already_picked") { render(); return; }
+          if(err && err.message === "already_picked") { return; }
           delete state.championPicks[myName];
           render();
         });
@@ -1039,16 +1037,24 @@
   $("#skipChampion").addEventListener("click", function(){ render(true); });
 
   // ============== MAIN RENDER ==============
+  var stateLoaded = false; // true once the first apiGet() has come back
   function render(forceSkipChampion){
     renderWhoPill();
 
     var needsName = !myName;
-    var needsChampion = !needsName && !state.championPicks[myName] && !forceSkipChampion && !window["__skipChamp_"+myName];
+    // While we're still waiting on the very first server response, we
+    // don't yet know whether a returning voter already made their
+    // champion pick — show a brief loading state instead of guessing
+    // "needs champion" and flashing that screen before flipping to the
+    // bracket a moment later.
+    var awaitingFirstLoad = !needsName && !stateLoaded;
+    var needsChampion = !needsName && !awaitingFirstLoad && !state.championPicks[myName] && !forceSkipChampion && !window["__skipChamp_"+myName];
     if(forceSkipChampion) window["__skipChamp_"+myName] = true;
 
+    $("#screenLoading").hidden = !awaitingFirstLoad;
     $("#screenName").hidden = !needsName;
-    $("#screenChampionPick").hidden = !(!needsName && needsChampion);
-    var showMain = !needsName && !needsChampion;
+    $("#screenChampionPick").hidden = !(!needsName && !awaitingFirstLoad && needsChampion);
+    var showMain = !needsName && !awaitingFirstLoad && !needsChampion;
     $("#screenBracket").hidden = !(showMain && activeTab==="bracket");
     $("#screenMyPicks").hidden = !(showMain && activeTab==="mypicks");
     $("#screenStats").hidden = !(showMain && activeTab==="stats");
@@ -1059,6 +1065,7 @@
     });
 
     if(needsName){ renderNameGrid(); return; }
+    if(awaitingFirstLoad){ return; }
     if(needsChampion){ renderChampionGrid(); return; }
 
     if(activeTab==="bracket"){
@@ -1078,7 +1085,7 @@
     activeRound = defaultActiveRound();
     setupAdminTap();
     render();
-    apiGet().then(function(){ activeRound = defaultActiveRound(); render(); });
+    apiGet().then(function(){ stateLoaded = true; activeRound = defaultActiveRound(); render(); });
     setInterval(function(){
       apiGet().then(function(){ render(); });
     }, 5000);
