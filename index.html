@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pixar Movie Bracket</title>
+<link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -54,7 +55,7 @@
     border-bottom:1px solid var(--line);
   }
   .brand{ display:flex; align-items:center; gap:8px; cursor:default; user-select:none; }
-  .brand .mark{ font-size:22px; line-height:1; }
+  .brand .mark{ width:24px; height:24px; display:block; object-fit:contain; }
   .brand .word{ font-size:17px; font-weight:700; letter-spacing:0.2px; }
   .who-pill{
     display:flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--line);
@@ -201,7 +202,7 @@
 
 <div id="app">
   <div class="topbar">
-    <div class="brand" id="titleTap"><span class="mark">🎬</span><span class="word">Pixar Movie Bracket</span></div>
+    <div class="brand" id="titleTap"><img class="mark" src="luxo-ball.png" alt=""><span class="word">Pixar Movie Bracket</span></div>
     <button class="who-pill" id="whoPill" hidden>
       <span class="dot" id="whoDot">?</span>
       <span id="whoName">—</span>
