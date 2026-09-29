@@ -195,13 +195,6 @@
     </button>
   </div>
 
-  <!-- LOADING (shown only while we wait to hear from the server the
-       first time, so a returning voter isn't flashed the champion-pick
-       screen before we know they already picked) -->
-  <div class="screen" id="screenLoading" hidden style="padding-top:60px;text-align:center;color:var(--muted);">
-    Loading…
-  </div>
-
   <!-- NAME PICKER -->
   <div class="screen" id="screenName" hidden>
     <h1 style="font-size:26px;margin:6px 0 4px;">Who's voting?</h1>
@@ -209,16 +202,9 @@
     <div class="name-grid" id="nameGrid"></div>
   </div>
 
-  <!-- CHAMPION PICK -->
-  <div class="screen" id="screenChampionPick" hidden>
-    <h1 style="font-size:24px;margin:6px 0 4px;">Call your champion</h1>
-    <p class="lead">Before round one, pick which movie you think will win the whole bracket. Locked in once you choose — no changing later.</p>
-    <div class="name-grid" id="championGrid" style="grid-template-columns:1fr 1fr;"></div>
-    <div style="text-align:center;margin-top:16px;"><button class="link-btn" id="skipChampion">Skip for now</button></div>
-  </div>
-
   <!-- BRACKET TAB -->
   <div class="screen" id="screenBracket" hidden>
+    <div id="championPrompt"></div>
     <div class="round-tabs" id="roundTabs"></div>
     <div id="gamesList"></div>
   </div>
@@ -287,6 +273,18 @@
   }
   function saveLocalName(n){
     try{ localStorage.setItem("bb_name", n); }catch(e){}
+  }
+  // Whether this person chose "skip" on the champion pick, remembered
+  // per-device so it doesn't reappear on every reload.
+  function championSkippedLocally(name){
+    try{ return JSON.parse(localStorage.getItem("bb_champ_skip")||"{}")[name] === true; }catch(e){ return false; }
+  }
+  function markChampionSkippedLocally(name){
+    try{
+      var m = JSON.parse(localStorage.getItem("bb_champ_skip")||"{}");
+      m[name] = true;
+      localStorage.setItem("bb_champ_skip", JSON.stringify(m));
+    }catch(e){}
   }
 
   // ============== API ==============
@@ -425,47 +423,6 @@
       grid.appendChild(b);
     });
   }
-  function renderChampionGrid(){
-    var grid = $("#championGrid");
-    grid.innerHTML = "";
-    grid.style.gridTemplateColumns = "1fr 1fr";
-    BRACKET.movies.slice().sort(function(a,b){ return a.title.localeCompare(b.title); }).forEach(function(m){
-      var b = el("button","pick-btn","");
-      b.innerHTML = posterHtml(m.id);
-      b.onclick = function(){
-        // Guard against double-submit: if a pick is already in flight or
-        // already recorded, ignore a second click instead of firing a
-        // duplicate request.
-        if(pendingChampion || state.championPicks[myName]) return;
-        pendingChampion = m.id;
-
-        // Visible confirmation before moving on: lock the grid, show a
-        // checkmark on the chosen poster, and toast the pick — then
-        // hold on this screen for a beat so it doesn't feel like the
-        // click did nothing before jumping to the bracket.
-        grid.querySelectorAll(".pick-btn").forEach(function(btn){ btn.disabled = true; btn.style.opacity = (btn===b) ? "1" : "0.4"; });
-        b.innerHTML = posterHtml(m.id, {badge:"✓", badgeType:"check"});
-        toast("Champion locked in: " + m.title);
-
-        state.championPicks[myName] = m.id;
-        setTimeout(function(){ render(); }, 700);
-
-        apiPost({action:"championPick", person: myName, movieId: m.id}).then(function(){
-          pendingChampion = null;
-        }).catch(function(err){
-          pendingChampion = null;
-          // "already_picked" means an earlier request already succeeded
-          // server-side — the optimistic pick already showing is correct,
-          // don't erase it.
-          if(err && err.message === "already_picked") { return; }
-          delete state.championPicks[myName];
-          render();
-        });
-      };
-      grid.appendChild(b);
-    });
-  }
-
   // ============== BRACKET TAB ==============
   function roundsWithGames(){
     return ROUND_ORDER.filter(function(r){ return BRACKET.games.some(function(g){ return g.round===r; }); });
@@ -627,8 +584,15 @@
       var card = el("div","card");
       card.innerHTML = posterHtml(pick);
       champWrap.appendChild(card);
-    } else {
+    } else if(championSkippedLocally(myName)){
       champWrap.appendChild(el("div","placeholder-note","You skipped your champion pick — you can still get badges from voting!"));
+    } else {
+      var note = el("div","placeholder-note","You haven't picked a champion yet.");
+      champWrap.appendChild(note);
+      var chooseBtn = el("button","btn","Choose champion");
+      chooseBtn.style.display = "block"; chooseBtn.style.margin = "10px auto 0";
+      chooseBtn.onclick = openChampionPickerModal;
+      champWrap.appendChild(chooseBtn);
     }
   }
 
@@ -1034,27 +998,80 @@
     });
   });
 
-  $("#skipChampion").addEventListener("click", function(){ render(true); });
+  // ============== CHAMPION PICK (reached from a prompt banner or the
+  // My Picks tab, never a forced first screen — see renderChampionPrompt) ==============
+  function championDecided(){
+    // "Decided" = picked (server-confirmed or optimistic) or explicitly
+    // skipped (remembered per-device). Anything else still needs a
+    // decision, and gets the prompt banner.
+    return !!state.championPicks[myName] || championSkippedLocally(myName);
+  }
+  function openChampionPickerModal(){
+    var content = el("div","");
+    content.innerHTML = '<h3>Call your champion</h3><p class="lead">Pick which movie you think will win the whole bracket. Locked in once you choose — no changing later.</p>';
+    var grid = el("div","name-grid");
+    grid.style.gridTemplateColumns = "1fr 1fr";
+    BRACKET.movies.slice().sort(function(a,b){ return a.title.localeCompare(b.title); }).forEach(function(m){
+      var b = el("button","pick-btn","");
+      b.innerHTML = posterHtml(m.id);
+      b.onclick = function(){
+        if(pendingChampion || state.championPicks[myName]) return;
+        pendingChampion = m.id;
+
+        grid.querySelectorAll(".pick-btn").forEach(function(btn){ btn.disabled = true; btn.style.opacity = (btn===b) ? "1" : "0.4"; });
+        b.innerHTML = posterHtml(m.id, {badge:"✓", badgeType:"check"});
+        toast("Champion locked in: " + m.title);
+
+        state.championPicks[myName] = m.id;
+        setTimeout(function(){ closeModal(); render(); }, 700);
+
+        apiPost({action:"championPick", person: myName, movieId: m.id}).then(function(){
+          pendingChampion = null;
+        }).catch(function(err){
+          pendingChampion = null;
+          if(err && err.message === "already_picked") { return; }
+          delete state.championPicks[myName];
+          render();
+        });
+      };
+      grid.appendChild(b);
+    });
+    content.appendChild(grid);
+    content.appendChild(el("div","","")); // spacer
+    var skipRow = el("div",""); skipRow.style.textAlign = "center"; skipRow.style.marginTop = "14px";
+    var skipBtn = el("button","link-btn","Skip — I'll just vote");
+    skipBtn.onclick = function(){ markChampionSkippedLocally(myName); closeModal(); render(); };
+    skipRow.appendChild(skipBtn);
+    content.appendChild(skipRow);
+    showModal(content);
+  }
+  function renderChampionPrompt(){
+    var slot = $("#championPrompt");
+    if(!slot) return;
+    slot.innerHTML = "";
+    if(championDecided()) return;
+    var card = el("div","card champion-prompt-card");
+    card.style.marginBottom = "14px";
+    card.innerHTML = '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;">' +
+      '<div><b>🏆 Who\'s your champion?</b><div class="lead" style="margin:2px 0 0;">Pick who wins it all before round one wraps up.</div></div>' +
+      '</div>';
+    var btnRow = el("div","btn-row"); btnRow.style.marginTop = "10px";
+    var chooseBtn = el("button","btn","Choose champion");
+    chooseBtn.onclick = openChampionPickerModal;
+    var skipBtn = el("button","btn secondary","Skip");
+    skipBtn.onclick = function(){ markChampionSkippedLocally(myName); render(); };
+    btnRow.appendChild(chooseBtn); btnRow.appendChild(skipBtn);
+    card.appendChild(btnRow);
+    slot.appendChild(card);
+  }
 
   // ============== MAIN RENDER ==============
-  var stateLoaded = false; // true once the first apiGet() has come back
-  function render(forceSkipChampion){
+  function render(){
     renderWhoPill();
 
     var needsName = !myName;
-    // While we're still waiting on the very first server response, we
-    // don't yet know whether a returning voter already made their
-    // champion pick — show a brief loading state instead of guessing
-    // "needs champion" and flashing that screen before flipping to the
-    // bracket a moment later.
-    var awaitingFirstLoad = !needsName && !stateLoaded;
-    var needsChampion = !needsName && !awaitingFirstLoad && !state.championPicks[myName] && !forceSkipChampion && !window["__skipChamp_"+myName];
-    if(forceSkipChampion) window["__skipChamp_"+myName] = true;
-
-    $("#screenLoading").hidden = !awaitingFirstLoad;
     $("#screenName").hidden = !needsName;
-    $("#screenChampionPick").hidden = !(!needsName && !awaitingFirstLoad && needsChampion);
-    var showMain = !needsName && !awaitingFirstLoad && !needsChampion;
+    var showMain = !needsName;
     $("#screenBracket").hidden = !(showMain && activeTab==="bracket");
     $("#screenMyPicks").hidden = !(showMain && activeTab==="mypicks");
     $("#screenStats").hidden = !(showMain && activeTab==="stats");
@@ -1065,10 +1082,9 @@
     });
 
     if(needsName){ renderNameGrid(); return; }
-    if(awaitingFirstLoad){ return; }
-    if(needsChampion){ renderChampionGrid(); return; }
 
     if(activeTab==="bracket"){
+      renderChampionPrompt();
       if(roundsWithGames().indexOf(activeRound)===-1) activeRound = defaultActiveRound();
       renderRoundTabs();
       renderGamesList();
@@ -1084,8 +1100,9 @@
     loadLocal();
     activeRound = defaultActiveRound();
     setupAdminTap();
-    render();
-    apiGet().then(function(){ stateLoaded = true; activeRound = defaultActiveRound(); render(); });
+    render(); // instant: renders the bracket from the bundled seed data,
+              // doesn't wait on the network at all
+    apiGet().then(function(){ activeRound = defaultActiveRound(); render(); });
     setInterval(function(){
       apiGet().then(function(){ render(); });
     }, 5000);
