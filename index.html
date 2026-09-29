@@ -275,6 +275,12 @@
   var activeTab = "bracket";
   var activeRound = "playin";
   var adminTapCount = 0, adminTapTimer = null;
+  // Votes/champion picks applied optimistically but not yet confirmed by
+  // their own server round-trip. The 5s background poll re-applies these
+  // on top of whatever it fetches so it can't clobber an in-flight write
+  // with stale data (Apps Script GETs can also come back browser-cached).
+  var pendingVotes = {}; // gameId -> {movieId, ts}
+  var pendingChampion = null; // movieId, or null
 
   function loadLocal(){
     try{ myName = localStorage.getItem("bb_name") || null; }catch(e){ myName = null; }
@@ -284,19 +290,40 @@
   }
 
   // ============== API ==============
+  function reapplyPending(){
+    // Called after any fetch replaces `state` wholesale (poll or our own
+    // request) so an optimistic write still in flight isn't lost to a
+    // response that was generated before it landed on the server.
+    Object.keys(pendingVotes).forEach(function(gameId){
+      var pv = pendingVotes[gameId];
+      if(!pv) return;
+      if(!state.votes[gameId]) state.votes[gameId] = {};
+      if(!state.votes[gameId][myName]){
+        state.votes[gameId][myName] = {movieId: pv.movieId, ts: pv.ts, pending: true};
+      }
+    });
+    if(pendingChampion && !state.championPicks[myName]){
+      state.championPicks[myName] = pendingChampion;
+    }
+  }
   function apiGet(){
-    return fetch(CONFIG.API_URL, {method:"GET"}).then(function(r){ return r.json(); }).then(function(s){
-      state = s; return state;
+    // cache: "no-store" plus a cache-busting param, because Apps Script
+    // Web App GET responses can otherwise be served stale from the
+    // browser's HTTP cache on a poll that reuses the same URL.
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf("?")===-1 ? "?" : "&") + "_=" + Date.now();
+    return fetch(url, {method:"GET", cache:"no-store"}).then(function(r){ return r.json(); }).then(function(s){
+      state = s; reapplyPending(); return state;
     }).catch(function(err){ console.warn("poll failed", err); return state; });
   }
   function apiPost(body){
     return fetch(CONFIG.API_URL, {
       method:"POST",
+      cache:"no-store",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
       body: JSON.stringify(body)
     }).then(function(r){ return r.json(); }).then(function(res){
       if(res.error){ toast(friendlyError(res.error)); throw new Error(res.error); }
-      if(res.state) state = res.state;
+      if(res.state){ state = res.state; reapplyPending(); }
       return res;
     }).catch(function(err){
       if(!(err && err.message && friendlyError(err.message) !== "Something went wrong — try again.")){
@@ -395,9 +422,20 @@
       var b = el("button","pick-btn","");
       b.innerHTML = posterHtml(m.id);
       b.onclick = function(){
+        // Optimistic: lock in the pick and move on to the bracket screen
+        // immediately (that screen switch IS the visual feedback here),
+        // reconciling with the server in the background.
+        pendingChampion = m.id;
+        state.championPicks[myName] = m.id;
+        render();
         apiPost({action:"championPick", person: myName, movieId: m.id}).then(function(){
+          pendingChampion = null;
           render();
-        }).catch(function(){});
+        }).catch(function(){
+          pendingChampion = null;
+          delete state.championPicks[myName];
+          render();
+        });
       };
       grid.appendChild(b);
     });
@@ -517,15 +555,21 @@
     // Optimistic UI: show the checkmark immediately, reconcile with the
     // server in the background. Apps Script round-trips can take a
     // couple of seconds, and nobody should have to stare at an
-    // unchecked button while that happens.
+    // unchecked button while that happens. pendingVotes marks this vote
+    // as not-yet-confirmed so the background poll can't clobber it with
+    // a response generated before the vote landed on the server.
     if(!state.votes[gameId]) state.votes[gameId] = {};
     var prevVote = state.votes[gameId][myName] || null;
-    state.votes[gameId][myName] = {movieId: movieId, ts: Date.now(), pending: true};
+    var ts = Date.now();
+    pendingVotes[gameId] = {movieId: movieId, ts: ts};
+    state.votes[gameId][myName] = {movieId: movieId, ts: ts, pending: true};
     render();
 
     apiPost({action:"vote", person: myName, gameId: gameId, movieId: movieId}).then(function(){
+      delete pendingVotes[gameId];
       render();
     }).catch(function(){
+      delete pendingVotes[gameId];
       // Roll back the optimistic vote if the server rejected it.
       if(prevVote){ state.votes[gameId][myName] = prevVote; }
       else { delete state.votes[gameId][myName]; }
