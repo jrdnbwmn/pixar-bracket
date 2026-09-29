@@ -514,9 +514,23 @@
   }
 
   function castVote(gameId, movieId){
+    // Optimistic UI: show the checkmark immediately, reconcile with the
+    // server in the background. Apps Script round-trips can take a
+    // couple of seconds, and nobody should have to stare at an
+    // unchecked button while that happens.
+    if(!state.votes[gameId]) state.votes[gameId] = {};
+    var prevVote = state.votes[gameId][myName] || null;
+    state.votes[gameId][myName] = {movieId: movieId, ts: Date.now(), pending: true};
+    render();
+
     apiPost({action:"vote", person: myName, gameId: gameId, movieId: movieId}).then(function(){
       render();
-    }).catch(function(){});
+    }).catch(function(){
+      // Roll back the optimistic vote if the server rejected it.
+      if(prevVote){ state.votes[gameId][myName] = prevVote; }
+      else { delete state.votes[gameId][myName]; }
+      render();
+    });
   }
 
   // ============== MY PICKS TAB ==============
