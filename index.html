@@ -113,6 +113,8 @@
   .tree-modal .modal{ max-width:none; width:100%; max-height:92vh; }
   .tree-modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .tree-modal-head h3{ margin:0; }
+  .tree-close-btn{ background:none; border:none; color:var(--muted); cursor:pointer; padding:4px; display:flex; }
+  .tree-close-btn svg{ width:22px; height:22px; display:block; }
   .tree-scroll{ overflow:auto; -webkit-overflow-scrolling:touch; padding-bottom:8px; max-height:calc(92vh - 90px); }
   .tree-cols{ display:flex; gap:36px; align-items:flex-start; width:max-content; padding:4px 2px; position:relative; }
   .tree-col{ display:flex; flex-direction:column; gap:14px; min-width:150px; position:relative; z-index:1; }
@@ -1236,7 +1238,7 @@
     var content = el("div","");
     var head = el("div","tree-modal-head");
     head.innerHTML = '<h3>Full bracket</h3>';
-    var closeBtn = el("button","link-btn","Close");
+    var closeBtn = el("button","tree-close-btn", '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10.5859 12L2.79297 4.20706L4.20718 2.79285L12.0001 10.5857L19.793 2.79285L21.2072 4.20706L13.4143 12L21.2072 19.7928L19.793 21.2071L12.0001 13.4142L4.20718 21.2071L2.79297 19.7928L10.5859 12Z"></path></svg>');
     closeBtn.onclick = closeModal;
     head.appendChild(closeBtn);
     content.appendChild(head);
