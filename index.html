@@ -112,7 +112,13 @@
   }
   .poster .p-title{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; line-height:1.15; text-wrap:balance; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
   .poster .p-year{ font-size:10px; opacity:0.9; font-weight:600; margin-top:2px; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
-  .poster .p-badge{ position:absolute; top:8px; right:8px; font-size:16px; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
+  .poster .p-badge{ position:absolute; top:8px; right:8px; font-size:15px; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
+  .poster .p-badge-check, .poster .p-badge-crown{
+    width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    filter:none; box-shadow:0 1px 4px rgba(0,0,0,0.5);
+  }
+  .poster .p-badge-check{ background:var(--teal); }
+  .poster .p-badge-crown{ background:var(--gold); }
 
   /* ---------- Round tabs ---------- */
   .round-tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:14px; }
@@ -407,7 +413,7 @@
     opts = opts || {};
     var m = movieById[movieId];
     if(!m) return '<div class="poster" style="background:var(--surface-2);"><div class="p-title" style="color:var(--muted);">TBD</div></div>';
-    var badge = opts.badge ? '<span class="p-badge">'+opts.badge+'</span>' : "";
+    var badge = opts.badge ? '<span class="p-badge p-badge-'+(opts.badgeType||"plain")+'">'+opts.badge+'</span>' : "";
     return '<div class="poster" style="'+posterStyle(movieId)+'">'+badge+
       '<div class="p-title">'+esc(m.title)+'</div><div class="p-year">'+m.year+'</div></div>';
   }
@@ -520,15 +526,15 @@
         return;
       }
       var cls = "pick-btn";
-      var badge = "";
+      var badge = "", badgeType = "plain";
       if(res){
         cls += (res.winner===mid) ? " winner" : " loser";
-        if(res.winner===mid) badge = "👑";
+        if(res.winner===mid){ badge = "👑"; badgeType = "crown"; }
       } else if(myPick===mid){
-        cls += " chosen"; badge = "✓";
+        cls += " chosen"; badge = "✓"; badgeType = "check";
       }
       var btn = el(status==="open" ? "button" : "div", cls);
-      btn.innerHTML = posterHtml(mid, {badge: badge});
+      btn.innerHTML = posterHtml(mid, {badge: badge, badgeType: badgeType});
       if(status==="open"){
         btn.onclick = function(){ castVote(game.id, mid); };
       } else if(status !== "done"){
