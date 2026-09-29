@@ -109,24 +109,20 @@
   .poster .p-badge-crown{ background:var(--gold); }
 
   /* ---------- Full bracket tree ---------- */
-  .tree-open-btn{
-    display:flex; align-items:center; gap:6px; justify-content:center; width:100%;
-    background:var(--surface-2); border:1px solid var(--line); border-radius:12px;
-    padding:10px; font-size:13px; font-weight:700; color:var(--ink); cursor:pointer; margin-bottom:12px;
-  }
+  .round-tab-tree{ background:var(--surface); border-style:dashed; }
   .tree-modal .modal{ max-width:none; width:100%; max-height:92vh; }
   .tree-modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .tree-modal-head h3{ margin:0; }
   .tree-scroll{ overflow:auto; -webkit-overflow-scrolling:touch; padding-bottom:8px; max-height:calc(92vh - 90px); }
-  .tree-cols{ display:flex; gap:22px; align-items:flex-start; width:max-content; padding:4px 2px; }
-  .tree-col{ display:flex; flex-direction:column; gap:16px; min-width:152px; }
+  .tree-cols{ display:flex; gap:36px; align-items:flex-start; width:max-content; padding:4px 2px; position:relative; }
+  .tree-col{ display:flex; flex-direction:column; gap:14px; min-width:150px; position:relative; z-index:1; }
   .tree-col-title{
     font-weight:800; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;
-    position:sticky; top:0; background:var(--surface); padding:4px 0 6px; z-index:1;
+    position:sticky; top:0; background:var(--surface); padding:4px 0 6px;
   }
-  .tree-quarter-group{ display:flex; flex-direction:column; gap:10px; padding-bottom:12px; border-bottom:1px dashed var(--line); }
-  .tree-quarter-group:last-child{ border-bottom:none; padding-bottom:0; }
-  .tree-box{ background:var(--surface-2); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .tree-gap{ height:16px; }
+  .tree-lines{ position:absolute; left:0; top:0; z-index:0; pointer-events:none; }
+  .tree-box{ background:var(--surface-2); border:1px solid var(--line); border-radius:10px; overflow:hidden; position:relative; }
   .tree-slot{ padding:7px 9px; border-bottom:1px solid var(--line); color:var(--muted); font-size:11.5px; font-weight:600; line-height:1.25; }
   .tree-slot:last-child{ border-bottom:none; }
   .tree-slot.win{ color:var(--ink); background:rgba(63,169,224,0.16); }
@@ -242,7 +238,6 @@
   <!-- BRACKET TAB -->
   <div class="screen" id="screenBracket" hidden>
     <div id="championPrompt"></div>
-    <button class="tree-open-btn" id="openTreeBtn">⛶ View full bracket</button>
     <div class="round-tabs" id="roundTabs"></div>
     <div id="gamesList"></div>
   </div>
@@ -489,6 +484,9 @@
       b.onclick = function(){ activeRound = r; render(); };
       wrap.appendChild(b);
     });
+    var treeTab = el("button","round-tab round-tab-tree", "⛶ Full Bracket");
+    treeTab.onclick = openBracketTreeModal;
+    wrap.appendChild(treeTab);
   }
   function renderGamesList(){
     var wrap = $("#gamesList");
@@ -1021,9 +1019,6 @@
     $("#whoDot").textContent = myName[0];
     $("#whoName").textContent = myName;
   }
-  var openTreeBtnEl = $("#openTreeBtn");
-  if(openTreeBtnEl) openTreeBtnEl.addEventListener("click", openBracketTreeModal);
-
   var whoPillEl = $("#whoPill");
   if(whoPillEl) whoPillEl.addEventListener("click", function(){
     var content = el("div","");
@@ -1139,26 +1134,63 @@
     return box;
   }
   function renderBracketTree(){
+    var boxByGameId = {};
     var cols = el("div","tree-cols");
     roundsWithGames().forEach(function(r){
       var col = el("div","tree-col");
       col.appendChild(el("div","tree-col-title", ROUND_LABELS[r]));
       var games = BRACKET.games.filter(function(g){ return g.round===r; });
-      var hasQuarters = games.some(function(g){ return g.quarter!==undefined; });
-      if(hasQuarters){
-        var byQuarter = {};
-        games.forEach(function(g){ (byQuarter[g.quarter] = byQuarter[g.quarter] || []).push(g); });
-        Object.keys(byQuarter).sort(function(a,b){ return a-b; }).forEach(function(q){
-          var grp = el("div","tree-quarter-group");
-          byQuarter[q].forEach(function(g){ grp.appendChild(treeBox(g)); });
-          col.appendChild(grp);
-        });
-      } else {
-        games.forEach(function(g){ col.appendChild(treeBox(g)); });
-      }
+      var lastQuarter;
+      games.forEach(function(g, i){
+        if(i>0 && g.quarter!==undefined && g.quarter!==lastQuarter) col.appendChild(el("div","tree-gap"));
+        var box = treeBox(g);
+        boxByGameId[g.id] = box;
+        col.appendChild(box);
+        lastQuarter = g.quarter;
+      });
       cols.appendChild(col);
     });
-    return cols;
+    return {cols: cols, boxByGameId: boxByGameId};
+  }
+  // Draws elbow connectors from each game's box to the specific slot row
+  // it feeds into in the next round, so the tree reads like a real
+  // tournament bracket instead of a flat list of rounds.
+  function drawTreeConnectors(colsEl, boxByGameId){
+    var svgNS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "tree-lines");
+    colsEl.insertBefore(svg, colsEl.firstChild);
+    var containerRect = colsEl.getBoundingClientRect();
+    var w = colsEl.scrollWidth, h = colsEl.scrollHeight;
+    svg.setAttribute("width", w);
+    svg.setAttribute("height", h);
+    svg.setAttribute("viewBox", "0 0 "+w+" "+h);
+    var lineColor = getComputedStyle(document.documentElement).getPropertyValue("--line").trim() || "#ccc";
+    BRACKET.games.forEach(function(g){
+      if(!g.slots) return;
+      var targetBox = boxByGameId[g.id];
+      if(!targetBox) return;
+      var slotEls = targetBox.querySelectorAll(".tree-slot");
+      g.slots.forEach(function(slot, idx){
+        if(!slot.sourceGame) return;
+        var sourceBox = boxByGameId[slot.sourceGame];
+        var targetSlotEl = slotEls[idx];
+        if(!sourceBox || !targetSlotEl) return;
+        var sr = sourceBox.getBoundingClientRect();
+        var tr = targetSlotEl.getBoundingClientRect();
+        var x1 = sr.right - containerRect.left;
+        var y1 = sr.top + sr.height/2 - containerRect.top;
+        var x2 = tr.left - containerRect.left;
+        var y2 = tr.top + tr.height/2 - containerRect.top;
+        var midX = x1 + (x2-x1)/2;
+        var path = document.createElementNS(svgNS, "path");
+        path.setAttribute("d", "M"+x1+","+y1+" H"+midX+" V"+y2+" H"+x2);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", lineColor);
+        path.setAttribute("stroke-width", "2");
+        svg.appendChild(path);
+      });
+    });
   }
   function openBracketTreeModal(){
     var content = el("div","");
@@ -1169,9 +1201,11 @@
     head.appendChild(closeBtn);
     content.appendChild(head);
     var scroll = el("div","tree-scroll");
-    scroll.appendChild(renderBracketTree());
+    var built = renderBracketTree();
+    scroll.appendChild(built.cols);
     content.appendChild(scroll);
     showModal(content, "tree-modal");
+    drawTreeConnectors(built.cols, built.boxByGameId);
   }
 
   // ============== MAIN RENDER ==============
