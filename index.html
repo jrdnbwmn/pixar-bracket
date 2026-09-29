@@ -120,9 +120,9 @@
     font-weight:800; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;
     position:sticky; top:0; background:var(--surface); padding:4px 0 6px;
   }
-  .tree-gap{ height:16px; }
+  .tree-col-body{ position:relative; }
   .tree-lines{ position:absolute; left:0; top:0; z-index:0; pointer-events:none; }
-  .tree-box{ background:var(--surface-2); border:1px solid var(--line); border-radius:10px; overflow:hidden; position:relative; }
+  .tree-box{ background:var(--surface-2); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
   .tree-slot{ padding:7px 9px; border-bottom:1px solid var(--line); color:var(--muted); font-size:11.5px; font-weight:600; line-height:1.25; }
   .tree-slot:last-child{ border-bottom:none; }
   .tree-slot.win{ color:var(--ink); background:rgba(63,169,224,0.16); }
@@ -496,7 +496,7 @@
     games.forEach(function(g){ wrap.appendChild(renderGameCard(g)); });
   }
   function statusLabel(st){
-    return {locked:"Locked", open:"Open", voted:"Waiting", done:"Final"}[st];
+    return {locked:"Locked", open:"Open", voted:"Voted", done:"Final"}[st];
   }
   function renderGameCard(game){
     var card = el("div","game-card");
@@ -1134,23 +1134,63 @@
     return box;
   }
   function renderBracketTree(){
-    var boxByGameId = {};
+    var boxByGameId = {}, bodyByRound = {}, orderByRound = {};
     var cols = el("div","tree-cols");
-    roundsWithGames().forEach(function(r){
+    var roundsList = roundsWithGames();
+    roundsList.forEach(function(r){
       var col = el("div","tree-col");
       col.appendChild(el("div","tree-col-title", ROUND_LABELS[r]));
+      var body = el("div","tree-col-body");
+      col.appendChild(body);
+      cols.appendChild(col);
+      bodyByRound[r] = body;
       var games = BRACKET.games.filter(function(g){ return g.round===r; });
-      var lastQuarter;
-      games.forEach(function(g, i){
-        if(i>0 && g.quarter!==undefined && g.quarter!==lastQuarter) col.appendChild(el("div","tree-gap"));
+      orderByRound[r] = games;
+      games.forEach(function(g){
         var box = treeBox(g);
+        box.style.position = "absolute";
+        box.style.left = "0"; box.style.right = "0"; box.style.top = "0";
+        body.appendChild(box);
         boxByGameId[g.id] = box;
-        col.appendChild(box);
+      });
+    });
+    return {cols: cols, boxByGameId: boxByGameId, bodyByRound: bodyByRound, orderByRound: orderByRound, roundsList: roundsList};
+  }
+  // Positions every game box vertically so a game sits centered between
+  // the two games that feed into it (falling back to simple stacking for
+  // the play-in round, which has no feeders). This is what makes the
+  // connector lines drawn afterward run cleanly instead of crisscrossing —
+  // the classic "aligned" tournament-bracket look.
+  function layoutBracketTree(built){
+    var GAP = 14, QGAP = 30;
+    var centerByGameId = {};
+    built.roundsList.forEach(function(r){
+      var games = built.orderByRound[r];
+      var cursor = 0;
+      var lastQuarter;
+      games.forEach(function(g, gi){
+        var box = built.boxByGameId[g.id];
+        var h = box.offsetHeight;
+        var minTop = cursor + (gi>0 ? GAP : 0) +
+          ((g.quarter!==undefined && lastQuarter!==undefined && g.quarter!==lastQuarter) ? QGAP : 0);
+        var desiredCenter = null;
+        if(g.slots){
+          var sourceCenters = [];
+          g.slots.forEach(function(slot){
+            if(slot.sourceGame && centerByGameId[slot.sourceGame]!==undefined){
+              sourceCenters.push(centerByGameId[slot.sourceGame]);
+            }
+          });
+          if(sourceCenters.length) desiredCenter = sourceCenters.reduce(function(a,b){ return a+b; },0)/sourceCenters.length;
+        }
+        var top = (desiredCenter!==null) ? Math.max(minTop, desiredCenter - h/2) : minTop;
+        centerByGameId[g.id] = top + h/2;
+        box.style.top = top+"px";
+        cursor = top + h;
         lastQuarter = g.quarter;
       });
-      cols.appendChild(col);
+      built.bodyByRound[r].style.height = cursor+"px";
     });
-    return {cols: cols, boxByGameId: boxByGameId};
   }
   // Draws elbow connectors from each game's box to the specific slot row
   // it feeds into in the next round, so the tree reads like a real
@@ -1205,6 +1245,7 @@
     scroll.appendChild(built.cols);
     content.appendChild(scroll);
     showModal(content, "tree-modal");
+    layoutBracketTree(built);
     drawTreeConnectors(built.cols, built.boxByGameId);
   }
 
