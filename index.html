@@ -782,6 +782,127 @@
       badgeCount[winner]++;
     });
 
+    // ---- Pass A: fair-assignment ----
+    // Anyone still at zero badges takes over the badge they came closest to
+    // winning, but only from someone who holds 2+ badges (so nobody is
+    // left empty-handed by this step).
+    PEOPLE.forEach(function(p){
+      if(badgeCount[p] > 0) return;
+      var best = null;
+      assigned.forEach(function(a){
+        if(a.def.pair || a.people.length!==1) return;
+        var holder = a.people[0];
+        if(badgeCount[holder] < 2) return;
+        var map = scores[a.def.key].scoreMap;
+        var mine = map[p] || 0;
+        if(mine <= 0) return;
+        var ratio = mine / (map[holder] || 1);
+        if(!best || ratio > best.ratio || (ratio === best.ratio && mine > best.mine)){
+          best = {entry:a, holder:holder, ratio:ratio, mine:mine};
+        }
+      });
+      if(best){
+        best.entry.people = [p];
+        best.entry.score = best.mine;
+        badgeCount[best.holder]--;
+        badgeCount[p]++;
+      }
+    });
+
+    // ---- Pass C: always-available fallback badges ----
+    // For anyone who voted in at least one decided game and still has no
+    // badge. Each is scored from real voting behaviour.
+    var decidedVotes = {};
+    Object.keys(state.results).forEach(function(gid){
+      var votes = state.votes[gid] || {};
+      Object.keys(votes).forEach(function(p){
+        (decidedVotes[p] = decidedVotes[p] || []).push({movieId:votes[p].movieId, ts:votes[p].ts, res:state.results[gid]});
+      });
+    });
+    var firstVoteTs = {};
+    Object.keys(state.votes).forEach(function(gid){
+      var votes = state.votes[gid] || {};
+      Object.keys(votes).forEach(function(p){
+        var t = votes[p].ts;
+        if(firstVoteTs[p]===undefined || t < firstVoteTs[p]) firstVoteTs[p] = t;
+      });
+    });
+    var eligible = PEOPLE.filter(function(p){ return decidedVotes[p] && decidedVotes[p].length > 0; });
+    var fallbackDefs = [
+      {key:"trailblazer", emoji:"🚩", label:"Trailblazer", blurb:"Cast the very first votes of the bracket",
+        score:function(p){ return firstVoteTs[p]!==undefined ? (1e13 - firstVoteTs[p]) : 0; }},
+      {key:"timetraveler", emoji:"🧭", label:"Time Traveler", blurb:"Backed movies from the most different eras",
+        score:function(p){
+          var decades = {};
+          decidedVotes[p].forEach(function(v){ var m = movieById[v.movieId]; if(m) decades[Math.floor(m.year/10)] = true; });
+          return Object.keys(decades).length;
+        }},
+      {key:"franchise", emoji:"🧸", label:"Franchise Faithful", blurb:"Loyal to the big franchises",
+        score:function(p){
+          return decidedVotes[p].filter(function(v){ var m = movieById[v.movieId]; return m && m.series; }).length;
+        }},
+      {key:"roll", emoji:"🔥", label:"On a Roll", blurb:"Longest streak of backing winners",
+        score:function(p){
+          var list = decidedVotes[p].slice().sort(function(a,b){ return a.ts - b.ts; });
+          var best = 0, run = 0;
+          list.forEach(function(v){
+            if(v.movieId === v.res.winner){ run++; if(run > best) best = run; } else run = 0;
+          });
+          return best;
+        }},
+      {key:"clutch", emoji:"🧊", label:"Clutch Picker", blurb:"Right when it was closest",
+        score:function(p){
+          return decidedVotes[p].filter(function(v){
+            var r = v.res;
+            if(r.tie || !r.tally || !r.movies) return false;
+            var a = r.tally[r.movies[0]] || 0, b = r.tally[r.movies[1]] || 0;
+            var close = (a===5 && b===3) || (a===3 && b===5);
+            return close && v.movieId === r.winner;
+          }).length;
+        }},
+    ];
+    var needy = eligible.filter(function(p){ return badgeCount[p] === 0; });
+    if(needy.length){
+      // rank[f.key][person] = 0 for the top scorer, 1 for next, ...; -1 = no basis
+      var scoreOf = {}, rankOf = {};
+      fallbackDefs.forEach(function(f){
+        scoreOf[f.key] = {};
+        eligible.forEach(function(p){ scoreOf[f.key][p] = f.score(p); });
+        var ranked = eligible.filter(function(p){ return scoreOf[f.key][p] > 0; })
+          .sort(function(a,b){ return scoreOf[f.key][b] - scoreOf[f.key][a] || a.localeCompare(b); });
+        rankOf[f.key] = {};
+        ranked.forEach(function(p, i){ rankOf[f.key][p] = i; });
+      });
+      // Maximum matching (people -> fallback badges), preferring each
+      // person's best-ranked badge, so as many as possible get one.
+      var edges = {};
+      needy.forEach(function(p){
+        edges[p] = fallbackDefs.filter(function(f){ return rankOf[f.key][p] !== undefined; })
+          .sort(function(a,b){ return rankOf[a.key][p] - rankOf[b.key][p]; });
+      });
+      var holderOf = {}; // fallback key -> person
+      function tryAssign(p, seen){
+        for(var i=0;i<edges[p].length;i++){
+          var f = edges[p][i];
+          if(seen[f.key]) continue;
+          seen[f.key] = true;
+          if(holderOf[f.key]===undefined || tryAssign(holderOf[f.key], seen)){
+            holderOf[f.key] = p;
+            return true;
+          }
+        }
+        return false;
+      }
+      needy.slice().sort(function(a,b){ return edges[a].length - edges[b].length; })
+        .forEach(function(p){ tryAssign(p, {}); });
+      fallbackDefs.forEach(function(f){
+        var p = holderOf[f.key];
+        if(p === undefined) return;
+        assigned.push({def:f, people:[p], score:scoreOf[f.key][p]});
+        badgeCount[p]++;
+      });
+    }
+
     return {assigned: assigned, badgeCount: badgeCount};
   }
 
