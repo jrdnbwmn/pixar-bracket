@@ -783,31 +783,37 @@
     });
 
     // ---- Pass A: fair-assignment ----
-    // Anyone still at zero badges takes over the badge they came closest to
-    // winning, but only from someone who holds 2+ badges (so nobody is
-    // left empty-handed by this step).
-    PEOPLE.forEach(function(p){
-      if(badgeCount[p] > 0) return;
-      var best = null;
-      assigned.forEach(function(a){
-        if(a.def.pair || a.people.length!==1) return;
-        var holder = a.people[0];
-        if(badgeCount[holder] < 2) return;
-        var map = scores[a.def.key].scoreMap;
-        var mine = map[p] || 0;
-        if(mine <= 0) return;
-        var ratio = mine / (map[holder] || 1);
-        if(!best || ratio > best.ratio || (ratio === best.ratio && mine > best.mine)){
-          best = {entry:a, holder:holder, ratio:ratio, mine:mine};
+    // Everyone should end up with at least MIN_BADGES. Anyone below that
+    // takes over the badge they came closest to winning, but only from
+    // someone who would still keep MIN_BADGES after giving it up.
+    var MIN_BADGES = 2;
+    var changed = true, guard = 0;
+    while(changed && guard++ < 50){
+      changed = false;
+      PEOPLE.slice().sort(function(a,b){ return badgeCount[a] - badgeCount[b]; }).forEach(function(p){
+        if(badgeCount[p] >= MIN_BADGES) return;
+        var best = null;
+        assigned.forEach(function(a){
+          if(a.def.pair || a.people.length!==1) return;
+          var holder = a.people[0];
+          if(holder === p || badgeCount[holder] <= MIN_BADGES) return;
+          var map = scores[a.def.key].scoreMap;
+          var mine = map[p] || 0;
+          if(mine <= 0) return;
+          var ratio = mine / (map[holder] || 1);
+          if(!best || ratio > best.ratio || (ratio === best.ratio && mine > best.mine)){
+            best = {entry:a, holder:holder, ratio:ratio, mine:mine};
+          }
+        });
+        if(best){
+          best.entry.people = [p];
+          best.entry.score = best.mine;
+          badgeCount[best.holder]--;
+          badgeCount[p]++;
+          changed = true;
         }
       });
-      if(best){
-        best.entry.people = [p];
-        best.entry.score = best.mine;
-        badgeCount[best.holder]--;
-        badgeCount[p]++;
-      }
-    });
+    }
 
     // ---- Pass C: always-available fallback badges ----
     // For anyone who voted in at least one decided game and still has no
@@ -861,26 +867,25 @@
           }).length;
         }},
     ];
-    var needy = eligible.filter(function(p){ return badgeCount[p] === 0; });
-    if(needy.length){
-      // rank[f.key][person] = 0 for the top scorer, 1 for next, ...; -1 = no basis
-      var scoreOf = {}, rankOf = {};
-      fallbackDefs.forEach(function(f){
-        scoreOf[f.key] = {};
-        eligible.forEach(function(p){ scoreOf[f.key][p] = f.score(p); });
-        var ranked = eligible.filter(function(p){ return scoreOf[f.key][p] > 0; })
-          .sort(function(a,b){ return scoreOf[f.key][b] - scoreOf[f.key][a] || a.localeCompare(b); });
-        rankOf[f.key] = {};
-        ranked.forEach(function(p, i){ rankOf[f.key][p] = i; });
-      });
-      // Maximum matching (people -> fallback badges), preferring each
-      // person's best-ranked badge, so as many as possible get one.
+    // rank: 0 = top scorer for that fallback badge; undefined = no basis
+    var scoreOf = {}, rankOf = {};
+    fallbackDefs.forEach(function(f){
+      scoreOf[f.key] = {};
+      eligible.forEach(function(p){ scoreOf[f.key][p] = f.score(p); });
+      var ranked = eligible.filter(function(p){ return scoreOf[f.key][p] > 0; })
+        .sort(function(a,b){ return scoreOf[f.key][b] - scoreOf[f.key][a] || a.localeCompare(b); });
+      rankOf[f.key] = {};
+      ranked.forEach(function(p, i){ rankOf[f.key][p] = i; });
+    });
+    // Maximum matching of people -> unused fallback badges, preferring each
+    // person's best-ranked badge, so as many people as possible get one.
+    function matchFallbacks(people, defs){
       var edges = {};
-      needy.forEach(function(p){
-        edges[p] = fallbackDefs.filter(function(f){ return rankOf[f.key][p] !== undefined; })
+      people.forEach(function(p){
+        edges[p] = defs.filter(function(f){ return rankOf[f.key][p] !== undefined; })
           .sort(function(a,b){ return rankOf[a.key][p] - rankOf[b.key][p]; });
       });
-      var holderOf = {}; // fallback key -> person
+      var holderOf = {};
       function tryAssign(p, seen){
         for(var i=0;i<edges[p].length;i++){
           var f = edges[p][i];
@@ -893,14 +898,26 @@
         }
         return false;
       }
-      needy.slice().sort(function(a,b){ return edges[a].length - edges[b].length; })
+      people.slice().sort(function(a,b){ return edges[a].length - edges[b].length; })
         .forEach(function(p){ tryAssign(p, {}); });
-      fallbackDefs.forEach(function(f){
-        var p = holderOf[f.key];
-        if(p === undefined) return;
-        assigned.push({def:f, people:[p], score:scoreOf[f.key][p]});
-        badgeCount[p]++;
-      });
+      return holderOf;
+    }
+    // Hand fallbacks to the people with the fewest badges first; each
+    // round gives a person at most one, and each badge is used once.
+    var unusedFallbacks = fallbackDefs.slice();
+    for(var round = 0; round < MIN_BADGES && unusedFallbacks.length; round++){
+      for(var level = 0; level < MIN_BADGES && unusedFallbacks.length; level++){
+        var group = eligible.filter(function(p){ return badgeCount[p] === level; });
+        if(!group.length) continue;
+        var holders = matchFallbacks(group, unusedFallbacks);
+        unusedFallbacks = unusedFallbacks.filter(function(f){
+          var p = holders[f.key];
+          if(p === undefined) return true;
+          assigned.push({def:f, people:[p], score:scoreOf[f.key][p]});
+          badgeCount[p]++;
+          return false;
+        });
+      }
     }
 
     return {assigned: assigned, badgeCount: badgeCount};
