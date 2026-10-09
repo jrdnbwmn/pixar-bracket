@@ -834,6 +834,24 @@
       });
     });
     var eligible = PEOPLE.filter(function(p){ return decidedVotes[p] && decidedVotes[p].length > 0; });
+    // "The Closer": in each decided, non-tie game, the voter whose vote
+    // first gave the winner a majority (votes replayed in the order cast).
+    var closerCount = {};
+    Object.keys(state.results).forEach(function(gid){
+      var res = state.results[gid];
+      var votes = state.votes[gid] || {};
+      var people = Object.keys(votes);
+      if(!res || res.tie || people.length === 0) return;
+      var need = Math.floor(people.length/2) + 1;
+      var seen = 0;
+      var ordered = people.slice().sort(function(a,b){ return votes[a].ts - votes[b].ts; });
+      for(var i=0;i<ordered.length;i++){
+        if(votes[ordered[i]].movieId === res.winner){
+          seen++;
+          if(seen === need){ closerCount[ordered[i]] = (closerCount[ordered[i]]||0) + 1; break; }
+        }
+      }
+    });
     var fallbackDefs = [
       {key:"trailblazer", emoji:"🚩", label:"Trailblazer", blurb:"Cast the very first votes of the bracket",
         score:function(p){ return firstVoteTs[p]!==undefined ? (1e13 - firstVoteTs[p]) : 0; }},
@@ -865,6 +883,45 @@
             var close = (a===5 && b===3) || (a===3 && b===5);
             return close && v.movieId === r.winner;
           }).length;
+        }},
+      {key:"closer", emoji:"⏱️", label:"The Closer", blurb:"Cast the vote that sealed it",
+        score:function(p){ return closerCount[p] || 0; }},
+      {key:"instinct", emoji:"🏁", label:"Winning Instinct", blurb:"Backed the most game winners",
+        score:function(p){
+          return decidedVotes[p].filter(function(v){ return v.movieId === v.res.winner; }).length;
+        }},
+      {key:"decade", emoji:"🗓️", label:"Decade Devotee", blurb:"Knows what they like, and when it came out",
+        score:function(p){
+          var byDecade = {}, best = 0;
+          decidedVotes[p].forEach(function(v){
+            var m = movieById[v.movieId]; if(!m) return;
+            var d = Math.floor(m.year/10);
+            byDecade[d] = (byDecade[d]||0) + 1;
+            if(byDecade[d] > best) best = byDecade[d];
+          });
+          return best;
+        }},
+      {key:"nightowl", emoji:"🦉", label:"Night Owl", blurb:"Votes after dark",
+        score:function(p){
+          // Same fixed UTC-6 clock as Early Bird, so everyone sees the same result
+          return decidedVotes[p].filter(function(v){
+            var hr = (new Date(v.ts).getUTCHours() - 6 + 24) % 24;
+            return hr >= 21 || hr < 4;
+          }).length;
+        }},
+      {key:"skeptic", emoji:"🥊", label:"Sequel Skeptic", blurb:"The original is always better",
+        score:function(p){
+          return decidedVotes[p].filter(function(v){
+            var r = v.res; if(!r.movies) return false;
+            var a = movieById[r.movies[0]], b = movieById[r.movies[1]];
+            if(!a || !b) return false;
+            var originalId = (a.sequelOf === b.id) ? b.id : (b.sequelOf === a.id ? a.id : null);
+            return originalId !== null && v.movieId === originalId;
+          }).length;
+        }},
+      {key:"original", emoji:"💡", label:"Original Thinker", blurb:"Champion of the standalone stories",
+        score:function(p){
+          return decidedVotes[p].filter(function(v){ var m = movieById[v.movieId]; return m && !m.series; }).length;
         }},
     ];
     // rank: 0 = top scorer for that fallback badge; undefined = no basis
